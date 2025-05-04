@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>MetaChess</title>
+	<link rel="stylesheet" href="css/styles.css">
+	<link rel="stylesheet" href="lib/chessboard.css">
+	<link rel="icon" href="favicon.ico" type="image/x-icon">
+</head>
+
+<body>
+	<div class="container">
+		<header>
+			<h1>MetaChess</h1>
+			<div id="game-status">Waiting for opponent...</div>
+		</header>
+
+		<!-- Black player interface -->
+		<div class="player-frame" id="black-player">
+			<div class="player-info">
+				<span class="player-name">BLACK</span>
+				<span class="deck-count">Deck: <span id="black-deck-count">60</span></span>
+			</div>
+			<div class="card-container" id="black-cards">
+				<!-- Cards will be generated here by JavaScript -->
+			</div>
+			<div class="player-controls">
+				<button id="black-redraw" disabled>Redraw</button>
+				<button id="black-pass" disabled>Pass Turn</button>
+			</div>
+		</div>
+
+		<!-- Status display -->
+		<div id="status-frame">
+			<div id="status-message">Ready</div>
+		</div>
+
+		<!-- Chess board -->
+		<div id="board-container">
+			<div id="chessboard"></div>
+		</div>
+
+		<!-- White player interface -->
+		<div class="player-frame" id="white-player">
+			<div class="player-info">
+				<span class="player-name">WHITE</span>
+				<span class="deck-count">Deck: <span id="white-deck-count">60</span></span>
+			</div>
+			<div class="card-container" id="white-cards">
+				<!-- Cards will be generated here by JavaScript -->
+			</div>
+			<div class="player-controls">
+				<button id="white-redraw" disabled>Redraw</button>
+				<button id="white-pass" disabled>Pass Turn</button>
+			</div>
+		</div>
+
+		<!-- Game modals -->
+		<div class="modal" id="waiting-modal">
+			<div class="modal-content">
+				<h2>Waiting for opponent</h2>
+				<p>Share this game link with a friend to play:</p>
+				<input type="text" id="game-link" readonly>
+				<button id="copy-link">Copy Link</button>
+			</div>
+		</div>
+	</div>
+
+	<!-- External libraries -->
+	<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/stockfish@11/src/stockfish.js"></script>
+	<script src="lib/chess.js"></script>
+	<script src="lib/chessboard.js"></script>
+
+	<!-- App scripts -->
+	<script src="js/deck.js"></script>
+	<script src="js/board.js"></script>
+	<script src="js/ui.js"></script>
+	<script src="js/socket.js"></script>
+	<script src="js/stockfish.js"></script>
+	<script src="js/game.js"></script>
+	<script src="js/app.js"></script>
+</body>
+
+</html>
