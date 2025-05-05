@@ -69,156 +69,248 @@ wss.on('connection', (socket) => {
 	console.log('Client connected');
 
 	socket.on('message', (message) => {
-		const data = JSON.parse(message);
-		console.log('Received:', data);
+		try {
+			// Add logging before parsing
+			console.log('Raw message received:', message.toString());
 
-		switch (data.type) {
-			case 'create_game':
-				const gameId = uuidv4();
+			const data = JSON.parse(message);
+			console.log('Parsed message:', data);
 
-				// Create both decks
-				const whiteDeck = createDeck('white');
-				const blackDeck = createDeck('black');
+			switch (data.type) {
+				case 'create_game':
+					const gameId = uuidv4();
 
-				// Draw initial hands
-				const whiteHand = drawCards(whiteDeck, 5);
-				const blackHand = drawCards(blackDeck, 5);
+					// Randomly assign color - 50% chance of white/black
+					const creatorIsWhite = Math.random() < 0.5;
+					const creatorColor = creatorIsWhite ? 'white' : 'black';
+					const joinerColor = creatorIsWhite ? 'black' : 'white';
 
-				games[gameId] = {
-					id: gameId,
-					players: [socket],
-					currentTurn: 'white',
-					moves: [],
-					whiteDeck: whiteDeck,
-					whiteHand: whiteHand,
-					blackDeck: blackDeck,
-					blackHand: blackHand
-				};
+					// Create both decks
+					const whiteDeck = createDeck('white');
+					const blackDeck = createDeck('black');
 
-				socket.gameId = gameId;
-				socket.playerColor = 'white';
+					// Draw initial hands
+					const whiteHand = drawCards(whiteDeck, 5);
+					const blackHand = drawCards(blackDeck, 5);
 
-				socket.send(JSON.stringify({
-					type: 'game_created',
-					gameId: gameId,
-					playerColor: 'white',
-					whiteDeck: whiteDeck.length,
-					whiteHand: whiteHand,
-					blackDeck: blackDeck.length,
-					blackHand: blackHand
-				}));
-				break;
+					games[gameId] = {
+						id: gameId,
+						players: [socket],
+						currentTurn: 'white', // Game always starts with white
+						moves: [],
+						whiteDeck: whiteDeck,
+						whiteHand: whiteHand,
+						blackDeck: blackDeck,
+						blackHand: blackHand,
+						creatorColor: creatorColor,
+						joinerColor: joinerColor
+					};
 
-			case 'join_game':
-				const game = games[data.gameId];
-				if (!game) {
+					socket.gameId = gameId;
+					socket.playerColor = creatorColor;
+
 					socket.send(JSON.stringify({
-						type: 'error',
-						message: 'Game not found'
+						type: 'game_created',
+						gameId: gameId,
+						playerColor: creatorColor,
+						whiteDeck: whiteDeck.length,
+						whiteHand: creatorColor === 'white' ? whiteHand : [],
+						blackDeck: blackDeck.length,
+						blackHand: creatorColor === 'black' ? blackHand : []
 					}));
-					return;
-				}
+					break;
 
-				if (game.players.length >= 2) {
-					socket.send(JSON.stringify({
-						type: 'error',
-						message: 'Game is full'
-					}));
-					return;
-				}
-
-				game.players.push(socket);
-				socket.gameId = data.gameId;
-				socket.playerColor = 'black';
-
-				socket.send(JSON.stringify({
-					type: 'game_joined',
-					gameId: data.gameId,
-					playerColor: 'black',
-					whiteDeck: game.whiteDeck.length,
-					whiteHand: game.whiteHand,
-					blackDeck: game.blackDeck.length,
-					blackHand: game.blackHand,
-					currentTurn: game.currentTurn
-				}));
-
-				// Notify first player that opponent has joined
-				game.players[0].send(JSON.stringify({
-					type: 'opponent_joined',
-					gameId: data.gameId,
-					currentTurn: game.currentTurn
-				}));
-				break;
-
-			case 'move':
-				const gameMove = games[data.gameId];
-				if (!gameMove) return;
-
-				// Update hands based on the move
-				const moveData = data.move;
-				const playerColor = data.player;
-				const handIndex = moveData.handIndex;
-
-				if (playerColor === 'white') {
-					// Remove the card from hand
-					gameMove.whiteHand.splice(handIndex, 1);
-
-					// Draw a new card if deck isn't empty
-					if (gameMove.whiteDeck.length > 0 && gameMove.whiteHand.length < 5) {
-						gameMove.whiteHand.push(drawCards(gameMove.whiteDeck, 1)[0]);
-					}
-				} else {
-					// Remove the card from hand
-					gameMove.blackHand.splice(handIndex, 1);
-
-					// Draw a new card if deck isn't empty
-					if (gameMove.blackDeck.length > 0 && gameMove.blackHand.length < 5) {
-						gameMove.blackHand.push(drawCards(gameMove.blackDeck, 1)[0]);
-					}
-				}
-
-				// Store move
-				gameMove.moves.push(data.move);
-				gameMove.currentTurn = data.player === 'white' ? 'black' : 'white';
-
-				// Broadcast move to the other player
-				gameMove.players.forEach(client => {
-					if (client !== socket && client.readyState === WebSocket.OPEN) {
-						client.send(JSON.stringify({
-							type: 'opponent_move',
-							move: data.move,
-							whiteDeck: gameMove.whiteDeck.length,
-							whiteHand: gameMove.whiteHand,
-							blackDeck: gameMove.blackDeck.length,
-							blackHand: gameMove.blackHand,
-							currentTurn: gameMove.currentTurn
-						}));
-					}
-				});
-
-				// Send updated hand to the current player
-				socket.send(JSON.stringify({
-					type: 'hand_update',
-					whiteDeck: gameMove.whiteDeck.length,
-					whiteHand: gameMove.whiteHand,
-					blackDeck: gameMove.blackDeck.length,
-					blackHand: gameMove.blackHand,
-					currentTurn: gameMove.currentTurn
-				}));
-				break;
-
-			case 'heartbeat':
-				// Just acknowledge heartbeat
-				socket.send(JSON.stringify({
-					type: 'heartbeat_ack'
-				}));
-
-				// If this is a game heartbeat, log active games
-				if (data.gameId && games[data.gameId]) {
+				case 'join_game':
 					const game = games[data.gameId];
-					console.log(`Heartbeat for game ${data.gameId}, ${game.players.length} players connected`);
-				}
-				break;
+					if (!game) {
+						socket.send(JSON.stringify({
+							type: 'error',
+							message: 'Game not found'
+						}));
+						return;
+					}
+
+					if (game.players.length >= 2) {
+						socket.send(JSON.stringify({
+							type: 'error',
+							message: 'Game is full'
+						}));
+						return;
+					}
+
+					game.players.push(socket);
+					socket.gameId = data.gameId;
+					socket.playerColor = game.joinerColor;
+
+					socket.send(JSON.stringify({
+						type: 'game_joined',
+						gameId: data.gameId,
+						playerColor: game.joinerColor,
+						whiteDeck: game.whiteDeck.length,
+						whiteHand: game.joinerColor === 'white' ? game.whiteHand : [],
+						blackDeck: game.blackDeck.length,
+						blackHand: game.joinerColor === 'black' ? game.blackHand : [],
+						currentTurn: game.currentTurn
+					}));
+
+					// Notify first player that opponent has joined
+					game.players[0].send(JSON.stringify({
+						type: 'opponent_joined',
+						gameId: data.gameId,
+						opponentColor: game.joinerColor,
+						creatorColor: game.creatorColor,  // Add this line
+						currentTurn: game.currentTurn
+					}));
+					break;
+
+				case 'move':
+					const gameMove = games[data.gameId];
+					if (!gameMove) return;
+
+					// Update hands based on the move
+					const moveData = data.move;
+					const playerColor = data.player;
+					const handIndex = moveData.handIndex;
+
+					if (playerColor === 'white') {
+						// Remove the card from hand
+						gameMove.whiteHand.splice(handIndex, 1);
+
+						// Draw a new card if deck isn't empty
+						if (gameMove.whiteDeck.length > 0 && gameMove.whiteHand.length < 5) {
+							gameMove.whiteHand.push(drawCards(gameMove.whiteDeck, 1)[0]);
+						}
+					} else {
+						// Remove the card from hand
+						gameMove.blackHand.splice(handIndex, 1);
+
+						// Draw a new card if deck isn't empty
+						if (gameMove.blackDeck.length > 0 && gameMove.blackHand.length < 5) {
+							gameMove.blackHand.push(drawCards(gameMove.blackDeck, 1)[0]);
+						}
+					}
+
+					// Store move
+					gameMove.moves.push(data.move);
+					gameMove.currentTurn = data.player === 'white' ? 'black' : 'white';
+
+					// Broadcast move to the other player
+					gameMove.players.forEach(client => {
+						if (client !== socket && client.readyState === WebSocket.OPEN) {
+							// Determine which cards to send based on player color
+							const playerColor = client.playerColor;
+
+							client.send(JSON.stringify({
+								type: 'opponent_move',
+								move: data.move,
+								whiteDeck: gameMove.whiteDeck.length,
+								whiteHand: playerColor === 'white' ? gameMove.whiteHand : [], // Only send white hand to white player
+								blackDeck: gameMove.blackDeck.length,
+								blackHand: playerColor === 'black' ? gameMove.blackHand : [], // Only send black hand to black player
+								currentTurn: gameMove.currentTurn
+							}));
+						}
+					});
+
+					// Send updated hand to the current player
+					socket.send(JSON.stringify({
+						type: 'hand_update',
+						whiteDeck: gameMove.whiteDeck.length,
+						whiteHand: gameMove.whiteHand,
+						blackDeck: gameMove.blackDeck.length,
+						blackHand: gameMove.blackHand,
+						currentTurn: gameMove.currentTurn
+					}));
+					break;
+
+				case 'pass':
+					const gamePass = games[data.gameId];
+					if (!gamePass) return;
+
+					console.log(`Player ${data.player} is passing their turn in game ${data.gameId}`);
+
+					// Get the player who is passing
+					const passingPlayer = data.player;
+
+					// Verify it's actually this player's turn
+					if (gamePass.currentTurn !== passingPlayer) {
+						socket.send(JSON.stringify({
+							type: 'error',
+							message: 'Not your turn to pass'
+						}));
+						return;
+					}
+
+					// Clear the passing player's hand (discard all cards)
+					if (passingPlayer === 'white') {
+						console.log(`White player passing - clearing hand with ${gamePass.whiteHand.length} cards`);
+						gamePass.whiteHand = [];
+						// Draw new cards for the player who passed
+						if (gamePass.whiteDeck.length > 0) {
+							console.log(`White deck before drawing: ${gamePass.whiteDeck.length} cards`);
+							const drawnCards = drawCards(gamePass.whiteDeck, 5);
+							console.log(`White player drew ${drawnCards.length} cards:`, drawnCards);
+							gamePass.whiteHand = drawnCards;
+							console.log(`White deck after drawing: ${gamePass.whiteDeck.length} cards`);
+						} else {
+							console.log(`White deck is empty, no cards drawn`);
+						}
+					} else {
+						console.log(`Black player passing - clearing hand with ${gamePass.blackHand.length} cards`);
+						gamePass.blackHand = [];
+						// Draw new cards for the player who passed
+						if (gamePass.blackDeck.length > 0) {
+							console.log(`Black deck before drawing: ${gamePass.blackDeck.length} cards`);
+							const drawnCards = drawCards(gamePass.blackDeck, 5);
+							console.log(`Black player drew ${drawnCards.length} cards:`, drawnCards);
+							gamePass.blackHand = drawnCards;
+							console.log(`Black deck after drawing: ${gamePass.blackDeck.length} cards`);
+						} else {
+							console.log(`Black deck is empty, no cards drawn`);
+						}
+					}
+
+					// Switch turn
+					gamePass.currentTurn = passingPlayer === 'white' ? 'black' : 'white';
+
+					// Notify both players about the pass
+					gamePass.players.forEach(client => {
+						if (client.readyState === WebSocket.OPEN) {
+							// Determine which cards to send based on player color
+							const playerColor = client.playerColor;
+
+							client.send(JSON.stringify({
+								type: 'pass_update',
+								passingPlayer: passingPlayer,
+								whiteDeck: gamePass.whiteDeck.length,
+								whiteHand: playerColor === 'white' ? gamePass.whiteHand : [], // Only send white hand to white player
+								blackDeck: gamePass.blackDeck.length,
+								blackHand: playerColor === 'black' ? gamePass.blackHand : [], // Only send black hand to black player
+								currentTurn: gamePass.currentTurn
+							}));
+						}
+					});
+					break;
+
+				case 'heartbeat':
+					// Just acknowledge heartbeat
+					socket.send(JSON.stringify({
+						type: 'heartbeat_ack'
+					}));
+
+					// If this is a game heartbeat, log active games
+					if (data.gameId && games[data.gameId]) {
+						const game = games[data.gameId];
+						console.log(`Heartbeat for game ${data.gameId}, ${game.players.length} players connected`);
+					}
+					break;
+			}
+		} catch (error) {
+			console.error('Error processing message:', error);
+			socket.send(JSON.stringify({
+				type: 'error',
+				message: 'Invalid message format'
+			}));
 		}
 	});
 

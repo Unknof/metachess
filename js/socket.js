@@ -127,6 +127,21 @@ const MetachessSocket = (function () {
 		}, 30000); // Every 30 seconds
 	}
 
+	function sendPass(data) {
+		if (!socket || socket.readyState !== WebSocket.OPEN) {
+			console.error("Cannot send pass: Socket not connected");
+			return false;
+		}
+
+		socket.send(JSON.stringify({
+			type: 'pass',
+			player: data.player,
+			gameId: data.gameId  // Make sure this line exists!
+		}));
+
+		return true;
+	}
+
 	return {
 		init,
 		on,
@@ -134,6 +149,17 @@ const MetachessSocket = (function () {
 		createGame,
 		joinGame,
 		setGameInfo,
-		getConnectionInfo
+		getConnectionInfo,
+		sendPass,
+		isConnected() {
+			return socket && socket.readyState === WebSocket.OPEN;
+		},
+		// Add these getter methods
+		get gameId() {
+			return gameId;
+		},
+		get playerColor() {
+			return playerColor;
+		}
 	};
 })();

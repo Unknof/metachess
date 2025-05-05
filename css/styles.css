@@ -163,6 +163,22 @@ header h1 {
 	font-size: 12px;
 }
 
+/* Card backs for opponent's cards */
+.card-back {
+	background-color: #ddd;
+	color: #888;
+	cursor: default;
+}
+
+.card-back .card-inner {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	height: 100%;
+	font-size: 24px;
+	font-weight: bold;
+}
+
 /* Player controls */
 .player-controls {
 	display: flex;
