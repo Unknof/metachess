@@ -11,15 +11,24 @@ const MetachessGame = (function () {
 	let selectedCard = null;
 	let engineInitialized = false;
 
+	const pieceTypeMap = {
+		p: 'pawn',
+		n: 'knight',
+		b: 'bishop',
+		r: 'rook',
+		q: 'queen',
+		k: 'king'
+	};
+
 	function init(chessInstance, boardInstance) {
 		chess = chessInstance;
 		board = boardInstance;
 
 		console.log("Initializing game...");
 
-		// Initialize decks
+		// Initialize decks with appropriate case
 		whiteDeck = MetachessDeck.createDeck();
-		blackDeck = MetachessDeck.createDeck();
+		blackDeck = MetachessDeck.createDeck().map(piece => piece.toUpperCase());
 
 		console.log("Decks created:", whiteDeck.length, blackDeck.length);
 
@@ -53,11 +62,17 @@ const MetachessGame = (function () {
 	function updateHands() {
 		console.log("Updating hands, current turn:", currentTurn);
 
-		// Re-render both hands - explicitly set active status based on current turn
+		// Remove existing listeners first
+		const allCards = document.querySelectorAll('.piece-card');
+		allCards.forEach(card => {
+			card.replaceWith(card.cloneNode(true)); // Clone to remove event listeners
+		});
+
+		// Re-render both hands
 		MetachessDeck.renderCards(whiteHand, 'white-cards', 'white', currentTurn === 'white');
 		MetachessDeck.renderCards(blackHand, 'black-cards', 'black', currentTurn === 'black');
 
-		// Add event listeners to current player's cards
+		// Add event listeners to current player's cards only
 		const activeContainerId = `${currentTurn}-cards`;
 		console.log("Adding listeners to:", activeContainerId);
 
@@ -89,7 +104,18 @@ const MetachessGame = (function () {
 	}
 
 	function selectCard(pieceType, index) {
-		console.log('Selected piece type:', pieceType, 'at index:', index);
+		console.log('Selected piece type:', pieceType, 'at index:', index, 'Current turn:', currentTurn);
+
+		// 1-letter code: lowercase = white, uppercase = black
+		const isWhitePiece = pieceType === pieceType.toLowerCase();
+		const isBlackPiece = pieceType === pieceType.toUpperCase();
+
+		if ((currentTurn === 'white' && isBlackPiece) ||
+			(currentTurn === 'black' && isWhitePiece)) {
+			console.error("Wrong player trying to move!");
+			document.getElementById('status-message').textContent = `It's ${currentTurn}'s turn!`;
+			return;
+		}
 
 		// Remember the selected card
 		selectedCard = {
@@ -108,7 +134,14 @@ const MetachessGame = (function () {
 		if (engineInitialized) {
 			document.getElementById('status-message').textContent = "Thinking...";
 
-			MetachessEngine.getBestMoveForPieceType(chess.fen(), pieceType)
+			const enginePieceType = pieceTypeMap[pieceType.toLowerCase()];
+			if (!enginePieceType) {
+				console.error("Invalid piece type:", pieceType);
+				document.getElementById('status-message').textContent = "Invalid piece type!";
+				return;
+			}
+
+			MetachessEngine.getBestMoveForPieceType(chess.fen(), enginePieceType)
 				.then(moveStr => {
 					console.log("Engine returned move for", pieceType + ":", moveStr);
 
@@ -194,8 +227,32 @@ const MetachessGame = (function () {
 	}
 
 	function switchTurn() {
+		// Toggle the current turn
 		currentTurn = currentTurn === 'white' ? 'black' : 'white';
 		console.log("Switched turn to:", currentTurn);
+
+		// Get current board position
+		const boardPosition = chess.fen().split(' ')[0]; // Just the piece positions
+		const nextColor = currentTurn === 'white' ? 'w' : 'b'; // Chess.js uses 'w'/'b' for colors
+
+		// Create new FEN with correct turn, castling rights, etc.
+		const newFen = `${boardPosition} ${nextColor} KQkq - 0 1`; // Reset castling, en passant, and move counters
+
+		// Completely reset the chess engine with the new position and turn
+		chess = new Chess(newFen);
+
+		// Update the board display
+		if (board) {
+			board.position(chess.fen());
+		}
+
+		// If using Stockfish, reset it with the new position
+		if (engineInitialized && window.engine) {
+			window.engine.postMessage('position fen ' + chess.fen());
+			window.engine.postMessage('ucinewgame'); // Reset the engine completely
+		}
+
+		// Update UI
 		togglePlayerControls();
 		updateHands();
 	}

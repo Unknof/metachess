@@ -2,12 +2,12 @@
 const MetachessDeck = (function () {
 	// Piece types and their default counts
 	const defaultDeckConfig = {
-		'pawn': 20,
-		'knight': 10,
-		'bishop': 10,
-		'rook': 10,
-		'queen': 5,
-		'king': 5
+		'p': 20,
+		'n': 10,
+		'b': 10,
+		'r': 10,
+		'q': 5,
+		'k': 5
 	};
 
 	// Mapping piece types to Lichess file names
@@ -79,18 +79,22 @@ const MetachessDeck = (function () {
 			card.dataset.pieceType = pieceType;
 			card.dataset.index = index;
 
-			// Get the correct piece filename and create the full URL
-			const pieceFilename = pieceFilenames[color][pieceType];
-			const pieceUrl = pieceBaseUrl + pieceFilename;
+			// Use 1-letter code for image and name
+			const pieceNameMap = { p: "Pawn", n: "Knight", b: "Bishop", r: "Rook", q: "Queen", k: "King" };
+			const pieceName = pieceNameMap[pieceType.toLowerCase()] || pieceType;
 
-			// Add piece image and text
+			// Use Lichess piece images - same as the board uses
+			const pieceColor = pieceType === pieceType.toLowerCase() ? 'w' : 'b';
+			const pieceChar = pieceType.toLowerCase();
+			const lichessPiece = `${pieceColor}${pieceChar.toUpperCase()}`;
+			const pieceUrl = `https://raw.githubusercontent.com/lichess-org/lila/master/public/piece/cburnett/${lichessPiece}.svg`;
+
 			card.innerHTML = `
-                <div class="card-content">
-                    <img src="${pieceUrl}" class="piece-image" alt="${pieceType}">
-                    <div class="piece-name">${pieceType.charAt(0).toUpperCase() + pieceType.slice(1)}</div>
-                </div>
-            `;
-
+				<div class="card-content">
+					<img src="${pieceUrl}" class="piece-image" alt="${pieceName}">
+					<div class="piece-name">${pieceName}</div>
+				</div>
+			`;
 			container.appendChild(card);
 		});
 	}
