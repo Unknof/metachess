@@ -121,10 +121,8 @@ const MetachessGame = (function () {
 	function togglePlayerControls() {
 		console.log("Toggle controls for turn:", currentTurn);
 
-		// Enable/disable controls based on current turn
-		document.getElementById('white-redraw').disabled = (currentTurn !== 'white');
+		// Enable/disable controls based on current turn - REMOVED redraw buttons
 		document.getElementById('white-pass').disabled = (currentTurn !== 'white');
-		document.getElementById('black-redraw').disabled = (currentTurn !== 'black');
 		document.getElementById('black-pass').disabled = (currentTurn !== 'black');
 
 		// Update status message
@@ -331,37 +329,10 @@ const MetachessGame = (function () {
 
 		// If game is over, disable all controls
 		if (gameOver) {
-			document.getElementById('white-redraw').disabled = true;
-			document.getElementById('white-pass').disabled = true;
-			document.getElementById('black-redraw').disabled = true;
-			document.getElementById('black-pass').disabled = true;
+			disableAllControls();
 		}
 
 		return gameOver;
-	}
-
-	function redrawHand() {
-		if (gameOver) return;
-
-		console.log("Redrawing hand for:", currentTurn);
-
-		// Put current hand back in deck and draw new hand
-		if (currentTurn === 'white') {
-			whiteDeck = whiteDeck.concat(whiteHand);
-			whiteDeck = MetachessDeck.shuffleDeck(whiteDeck);
-			whiteHand = MetachessDeck.drawCards(whiteDeck, 5);
-		} else {
-			blackDeck = blackDeck.concat(blackHand);
-			blackDeck = MetachessDeck.shuffleDeck(blackDeck);
-			blackHand = MetachessDeck.drawCards(blackDeck, 5);
-		}
-
-		// Update UI
-		updateDecks();
-		updateHands();
-
-		// Switch turn
-		switchTurn();
 	}
 
 	// Fix the handlePassInMultiplayer function
@@ -390,6 +361,8 @@ const MetachessGame = (function () {
 		// Disable controls until server confirms the pass
 		disableAllControls();
 		document.getElementById('status-message').textContent = "Passing turn...";
+
+		// Don't change any state here - wait for the server's pass_update message
 	}
 
 	// Update the existing pass functions to use multiplayer when appropriate
@@ -528,7 +501,7 @@ const MetachessGame = (function () {
 		MetachessSocket.on('pass_update', (data) => {
 			console.log('Pass update received:', data);
 
-			// Update decks
+			// Update decks and hands
 			whiteDeck = Array(data.whiteDeck).fill('?');
 			blackDeck = Array(data.blackDeck).fill('?');
 
@@ -539,21 +512,12 @@ const MetachessGame = (function () {
 				blackHand = data.blackHand;
 			}
 
-			// Update current turn
-			currentTurn = data.currentTurn;
+			// Synchronize with server's game state
+			synchronizeGameState(data.currentTurn);
 
-			// Update UI
-			updateDecks();
-			updateHands();
-			togglePlayerControls();
-
-			// Show message
+			// Show pass message
 			const passingPlayer = data.passingPlayer === playerColor ? 'You' : 'Opponent';
 			document.getElementById('status-message').textContent = `${passingPlayer} passed the turn`;
-
-			// Update game status
-			document.getElementById('game-status').textContent =
-				currentTurn === playerColor ? 'Your turn' : 'Opponent\'s turn';
 		});
 
 		// Add handler for opponent_move
@@ -574,19 +538,18 @@ const MetachessGame = (function () {
 				blackHand = data.blackHand;
 			}
 
-			// Update UI
-			updateDecks();
-			updateHands();
+			// Synchronize with server's game state
+			synchronizeGameState(data.currentTurn);
 
 			// Status messages
 			document.getElementById('status-message').textContent = 'Opponent made a move';
 		});
 
-		// Add handler for hand_update
+		// Update the hand_update handler
 		MetachessSocket.on('hand_update', (data) => {
 			console.log('Hand update received:', data);
 
-			// Update deck counts
+			// Update deck counts and hands
 			whiteDeck = Array(data.whiteDeck).fill('?');
 			blackDeck = Array(data.blackDeck).fill('?');
 
@@ -597,13 +560,8 @@ const MetachessGame = (function () {
 				blackHand = data.blackHand;
 			}
 
-			// Update UI
-			updateDecks();
-			updateHands();
-
-			// Since this is usually after your own move, update the game status
-			document.getElementById('game-status').textContent =
-				currentTurn === playerColor ? 'Your turn' : 'Opponent\'s turn';
+			// Synchronize with server's game state
+			synchronizeGameState(data.currentTurn);
 		});
 	}
 
@@ -646,11 +604,10 @@ const MetachessGame = (function () {
 
 	function applyOpponentMove(moveData) {
 		// Extract move data
-		const { from, to, promotion, pieceType, handIndex } = moveData;
+		const { from, to, promotion } = moveData;
 
-		// Remove card from opponent's hand
-		const opponentCardIndex = handIndex;
-		removeCardFromOpponentHand(opponentCardIndex);
+		// Remove card from opponent's hand - this is handled by the server
+		// and will be reflected in the hand_update or opponent_move message
 
 		// Make the move on the chess board
 		const move = chess.move({
@@ -663,13 +620,8 @@ const MetachessGame = (function () {
 			// Update board display
 			board.position(chess.fen());
 
-			// Check game status
+			// Check game status (checkmate, etc.)
 			checkGameStatus();
-
-			// Switch turn if game not over
-			if (!gameOver) {
-				switchTurn();
-			}
 		}
 	}
 
@@ -699,9 +651,8 @@ const MetachessGame = (function () {
 	}
 
 	function disableAllControls() {
-		document.getElementById('white-redraw').disabled = true;
+		// Removed redraw buttons
 		document.getElementById('white-pass').disabled = true;
-		document.getElementById('black-redraw').disabled = true;
 		document.getElementById('black-pass').disabled = true;
 	}
 
@@ -717,9 +668,45 @@ const MetachessGame = (function () {
 		});
 	}
 
+	// Add this helper function
+	function synchronizeGameState(serverTurn) {
+		// Update our local turn state
+		currentTurn = serverTurn;
+
+		// Synchronize the chess engine's internal state
+		const boardPosition = chess.fen().split(' ')[0];
+		const engineColor = currentTurn === 'white' ? 'w' : 'b';
+		const newFen = `${boardPosition} ${engineColor} KQkq - 0 1`;
+
+		// Reset the chess engine with the new position and turn
+		chess = new Chess(newFen);
+
+		// Update the board display
+		if (board) {
+			board.position(chess.fen());
+		}
+
+		// If using Stockfish, reset it with the new position
+		if (engineInitialized && window.engine) {
+			window.engine.postMessage('position fen ' + chess.fen());
+			window.engine.postMessage('ucinewgame');
+		}
+
+		// Update UI
+		togglePlayerControls();
+		updateHands();
+
+		// Update game status
+		if (playerColor) {
+			document.getElementById('game-status').textContent =
+				currentTurn === playerColor ? 'Your turn' : 'Opponent\'s turn';
+		} else {
+			document.getElementById('game-status').textContent = `${currentTurn.toUpperCase()}'s turn`;
+		}
+	}
+
 	return {
 		init,
-		redrawHand,
 		passTurn,
 		initMultiplayer
 	};
