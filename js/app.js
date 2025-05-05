@@ -57,11 +57,34 @@ document.addEventListener('DOMContentLoaded', function () {
 		});
 	}
 
-	// Set up other event listeners for your buttons
+	// Update your existing create game button handler
 	const createGameBtn = document.getElementById('create-game-btn');
 	if (createGameBtn) {
-		createGameBtn.addEventListener('click', function () {
-			MetachessGame.initMultiplayer();
+		// Remove any existing event listeners to avoid duplicates
+		createGameBtn.replaceWith(createGameBtn.cloneNode(true));
+
+		// Get the fresh element and add listener
+		const freshCreateBtn = document.getElementById('create-game-btn');
+		freshCreateBtn.addEventListener('click', function (e) {
+			e.preventDefault();
+			console.log('Create game button clicked - initiating multiplayer setup');
+
+			// Hide the multiplayer modal
+			document.getElementById('multiplayer-modal').style.display = 'none';
+
+			// Initialize multiplayer and create game
+			MetachessGame.initMultiplayer()
+				.then(() => {
+					// Short delay to ensure socket is properly connected
+					setTimeout(() => {
+						console.log('Creating new game via socket');
+						MetachessSocket.createGame();
+					}, 500);
+				})
+				.catch(err => {
+					console.error('Failed to initialize multiplayer:', err);
+					document.getElementById('status-message').textContent = 'Failed to create game. Please try again.';
+				});
 		});
 	}
 
@@ -166,4 +189,18 @@ document.addEventListener('DOMContentLoaded', function () {
 	});
 
 	document.body.appendChild(debugBtn);
+
+	// Debug function to check modal state
+	function checkModalState() {
+		const multiplayerModal = document.getElementById('multiplayer-modal');
+		const waitingModal = document.getElementById('waiting-modal');
+
+		console.log('Multiplayer modal display:', multiplayerModal.style.display);
+		console.log('Waiting modal display:', waitingModal.style.display);
+		console.log('Multiplayer modal computed style:', window.getComputedStyle(multiplayerModal).display);
+		console.log('Waiting modal computed style:', window.getComputedStyle(waitingModal).display);
+	}
+
+	// Call this periodically for debugging
+	setInterval(checkModalState, 5000);
 });

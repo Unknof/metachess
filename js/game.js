@@ -382,9 +382,10 @@ const MetachessGame = (function () {
 		switchTurn();
 	}
 
+	// Update your initMultiplayer function
 	function initMultiplayer() {
-		// Initialize socket connection
-		MetachessSocket.init()
+		// Initialize socket connection and return the promise
+		return MetachessSocket.init()
 			.then(success => {
 				if (success) {
 					console.log('Socket connection successful, ready for multiplayer');
@@ -403,12 +404,16 @@ const MetachessGame = (function () {
 					} else {
 						// Only show multiplayer options if not joining a game
 						showMultiplayerOptions();
+						return true; // Return success
 					}
+					return true; // Return success
 				}
+				return false; // Return failure
 			})
 			.catch(error => {
 				console.error('Failed to initialize multiplayer:', error);
 				document.getElementById('status-message').textContent = 'Multiplayer unavailable. Playing in single-player mode.';
+				return false; // Return failure
 			});
 	}
 
@@ -565,18 +570,16 @@ const MetachessGame = (function () {
 		});
 	}
 
+	// Update your showMultiplayerOptions function
 	function showMultiplayerOptions() {
-		// Create new game option
-		const createGameBtn = document.getElementById('create-game-btn');
-
-		createGameBtn.addEventListener('click', () => {
-			console.log('Create game button clicked');
-			MetachessSocket.createGame();
-		});
-
 		// Show multiplayer modal
-		document.getElementById('multiplayer-modal').style.display = 'flex';
+		const modal = document.getElementById('multiplayer-modal');
+		modal.style.display = 'flex';
+		modal.style.opacity = '1';
+		modal.style.visibility = 'visible';
 		console.log('Set multiplayer modal display to flex');
+
+		// DO NOT add event listeners here - they're handled in app.js
 	}
 
 	function initializeWithColor(color) {
