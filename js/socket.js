@@ -5,7 +5,9 @@ const MetachessSocket = (function () {
 	let playerColor = null;
 	let callbacks = {};
 
-	function init(serverUrl = 'ws://localhost:8080') {
+	function init(serverUrl = window.location.hostname === 'localhost' ?
+		'ws://localhost:8080' :
+		`wss://${window.location.host}`) {
 		return new Promise((resolve, reject) => {
 			try {
 				// Close existing socket if it exists
