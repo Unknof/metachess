@@ -1,0 +1,14 @@
+{
+	"name": "metachess-server",
+	"version": "1.0.0",
+	"description": "Server for MetaChess multiplayer",
+	"main": "server.js",
+	"scripts": {
+		"start": "node server.js"
+	},
+	"dependencies": {
+		"express": "^4.21.2",
+		"uuid": "^9.0.0",
+		"ws": "^8.13.0"
+	}
+}

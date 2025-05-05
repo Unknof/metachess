@@ -9,7 +9,9 @@ const MetachessGame = (function () {
 	let board = null;
 	let chess = null;
 	let selectedCard = null;
+	let selectedSquare = null; // Added selectedSquare variable
 	let engineInitialized = false;
+	let playerColor = null; // 'white', 'black', or null (for local play)
 
 	const pieceTypeMap = {
 		p: 'pawn',
@@ -104,6 +106,12 @@ const MetachessGame = (function () {
 	}
 
 	function selectCard(pieceType, index) {
+		// If this is a multiplayer game, verify it's the player's turn
+		if (playerColor && currentTurn !== playerColor) {
+			document.getElementById('status-message').textContent = "Not your turn";
+			return;
+		}
+
 		console.log('Selected piece type:', pieceType, 'at index:', index, 'Current turn:', currentTurn);
 
 		// 1-letter code: lowercase = white, uppercase = black
@@ -170,6 +178,15 @@ const MetachessGame = (function () {
 
 						// Remove the card from hand
 						removeCardFromHand(index);
+
+						// Send move to server
+						MetachessSocket.sendMove({
+							from: move.from,
+							to: move.to,
+							promotion: move.promotion,
+							pieceType: pieceType,
+							handIndex: index
+						});
 
 						// Check game status
 						checkGameStatus();
@@ -318,9 +335,350 @@ const MetachessGame = (function () {
 		switchTurn();
 	}
 
+	function initMultiplayer() {
+		// Initialize socket connection
+		MetachessSocket.init()
+			.then(success => {
+				if (success) {
+					console.log('Socket connection successful, ready for multiplayer');
+					setupSocketListeners();
+
+					// Check for game ID in URL - AFTER socket is connected
+					const urlParams = new URLSearchParams(window.location.search);
+					const gameId = urlParams.get('game');
+
+					if (gameId) {
+						console.log('Found game ID in URL, joining game:', gameId);
+						// Add a slight delay to ensure socket is ready
+						setTimeout(() => {
+							MetachessSocket.joinGame(gameId);
+						}, 300);
+					} else {
+						// Only show multiplayer options if not joining a game
+						showMultiplayerOptions();
+					}
+				}
+			})
+			.catch(error => {
+				console.error('Failed to initialize multiplayer:', error);
+				document.getElementById('status-message').textContent = 'Multiplayer unavailable. Playing in single-player mode.';
+			});
+
+		MetachessSocket.on('game_created', (data) => {
+			console.log('Game created:', data);
+			MetachessSocket.setGameInfo(data.gameId, data.playerColor);
+			playerColor = data.playerColor;
+
+			// Set initial deck and hand state
+			whiteDeck = Array(data.whiteDeck).fill('?');
+			whiteHand = data.whiteHand;
+			blackDeck = Array(data.blackDeck).fill('?');
+			blackHand = data.blackHand;
+
+			// Update UI
+			updateDecks();
+			updateHands();
+
+			// Update UI to show waiting for opponent
+			document.getElementById('game-status').textContent = 'Waiting for opponent to join...';
+			document.getElementById('game-link').value = `${window.location.href}?game=${data.gameId}`;
+			document.getElementById('waiting-modal').style.display = 'flex';
+
+			// Disable controls until opponent joins
+			disableAllControls();
+		});
+
+		MetachessSocket.on('game_joined', (data) => {
+			console.log('Game joined:', data);
+			MetachessSocket.setGameInfo(data.gameId, data.playerColor);
+			playerColor = data.playerColor;
+
+			// Set initial deck and hand state
+			whiteDeck = Array(data.whiteDeck).fill('?');
+			whiteHand = data.whiteHand;
+			blackDeck = Array(data.blackDeck).fill('?');
+			blackHand = data.blackHand;
+			currentTurn = data.currentTurn;
+
+			// Update UI
+			updateDecks();
+			updateHands();
+			togglePlayerControls();
+
+			// Update UI to show game starting
+			document.getElementById('game-status').textContent = 'Game starting - you are playing as BLACK';
+			document.getElementById('waiting-modal').style.display = 'none';
+
+			// Initialize game as black
+			initializeWithColor('black');
+		});
+	}
+
+	function setupSocketListeners() {
+		// Listen for game created event
+		MetachessSocket.on('game_created', (data) => {
+			console.log('Game created:', data);
+			MetachessSocket.setGameInfo(data.gameId, data.playerColor);
+
+			// Set initial deck and hand state
+			whiteDeck = Array(data.whiteDeck).fill('?');
+			whiteHand = data.whiteHand;
+			blackDeck = Array(data.blackDeck).fill('?');
+			blackHand = data.blackHand;
+
+			// Update UI
+			updateDecks();
+			updateHands();
+
+			// Update UI to show waiting for opponent
+			document.getElementById('game-status').textContent = 'Waiting for opponent to join...';
+			document.getElementById('game-link').value = `${window.location.href}?game=${data.gameId}`;
+			document.getElementById('waiting-modal').style.display = 'flex';
+
+			// Disable controls until opponent joins
+			disableAllControls();
+		});
+
+		// Listen for game joined event
+		MetachessSocket.on('game_joined', (data) => {
+			console.log('Game joined:', data);
+			MetachessSocket.setGameInfo(data.gameId, data.playerColor);
+
+			// Set initial deck and hand state
+			whiteDeck = Array(data.whiteDeck).fill('?');
+			whiteHand = data.whiteHand;
+			blackDeck = Array(data.blackDeck).fill('?');
+			blackHand = data.blackHand;
+			currentTurn = data.currentTurn;
+
+			// Update UI
+			updateDecks();
+			updateHands();
+			togglePlayerControls();
+
+			// Update UI to show game starting
+			document.getElementById('game-status').textContent = 'Game starting - you are playing as BLACK';
+			document.getElementById('waiting-modal').style.display = 'none';
+
+			// Initialize game as black
+			initializeWithColor('black');
+		});
+
+		// Listen for opponent joined (for the player who created the game)
+		MetachessSocket.on('opponent_joined', () => {
+			console.log('Opponent joined the game');
+
+			// Clear the waiting modal
+			document.getElementById('multiplayer-modal').style.display = 'none';
+			document.getElementById('waiting-modal').style.display = 'none';
+
+			// Show a prominent notification
+			const notification = document.createElement('div');
+			notification.className = 'opponent-joined-notification';
+			notification.innerHTML = `
+				<div class="notification-content">
+					<h3>Opponent Connected!</h3>
+					<p>Game starting - you are playing as WHITE</p>
+				</div>
+			`;
+			document.body.appendChild(notification);
+
+			// Update game status
+			document.getElementById('game-status').textContent = 'Game starting - you are playing as WHITE';
+
+			// Flash the board or add some visual indication
+			const board = document.getElementById('chessboard');
+			board.classList.add('highlight-board');
+
+			// Remove the notification and highlight after a few seconds
+			setTimeout(() => {
+				notification.style.opacity = '0';
+				setTimeout(() => notification.remove(), 500);
+				board.classList.remove('highlight-board');
+			}, 3000);
+
+			// Enable controls if it's your turn
+			togglePlayerControls();
+		});
+
+		// Listen for opponent's move
+		MetachessSocket.on('opponent_move', (data) => {
+			console.log('Opponent made a move:', data);
+
+			// Apply the actual move to the board
+			const moveData = data.move;
+			const move = chess.move({
+				from: moveData.from,
+				to: moveData.to,
+				promotion: moveData.promotion
+			});
+
+			if (move) {
+				// Update board display
+				board.position(chess.fen());
+			}
+
+			// Update deck counts
+			whiteDeck = Array(data.whiteDeck).fill('?');
+			blackDeck = Array(data.blackDeck).fill('?');
+
+			// Update hands directly from server data
+			whiteHand = data.whiteHand;
+			blackHand = data.blackHand;
+
+			// Update current turn
+			currentTurn = data.currentTurn;
+
+			// Update UI
+			updateDecks();
+			updateHands();
+			togglePlayerControls();
+
+			// Check game status
+			checkGameStatus();
+		});
+
+		// When receiving game state updates
+		MetachessSocket.on('hand_update', (data) => {
+			console.log('Received hand update:', data);
+
+			// Update deck counts
+			whiteDeck = Array(data.whiteDeck).fill('?'); // Just track the count
+			blackDeck = Array(data.blackDeck).fill('?');
+
+			// Update hands directly from server data
+			whiteHand = data.whiteHand;
+			blackHand = data.blackHand;
+
+			// Update current turn if provided
+			if (data.currentTurn) {
+				currentTurn = data.currentTurn;
+			}
+
+			// Update UI
+			updateDecks();
+			updateHands();
+			togglePlayerControls();
+		});
+
+		// Listen for opponent disconnected
+		MetachessSocket.on('opponent_disconnected', () => {
+			console.log('Opponent disconnected');
+			document.getElementById('game-status').textContent = 'Opponent disconnected!';
+			gameOver = true;
+			disableAllControls();
+		});
+
+		// Listen for errors
+		MetachessSocket.on('error', (data) => {
+			console.error('Socket error:', data.message);
+			document.getElementById('status-message').textContent = data.message;
+		});
+	}
+
+	function showMultiplayerOptions() {
+		// Create new game option
+		const createGameBtn = document.getElementById('create-game-btn');
+
+		createGameBtn.addEventListener('click', () => {
+			console.log('Create game button clicked');
+			MetachessSocket.createGame();
+		});
+
+		// Show multiplayer modal
+		document.getElementById('multiplayer-modal').style.display = 'flex';
+		console.log('Set multiplayer modal display to flex');
+	}
+
+	function initializeWithColor(playerColor) {
+		// Initialize game state for specific color
+		currentTurn = 'white'; // Game always starts with white
+
+		// Determine which hand is controlled by the player
+		playerHand = playerColor === 'white' ? whiteHand : blackHand;
+		opponentHand = playerColor === 'white' ? blackHand : whiteHand;
+
+		// Update controls based on whose turn it is
+		togglePlayerControls();
+	}
+
+	function applyOpponentMove(moveData) {
+		// Extract move data
+		const { from, to, promotion, pieceType, handIndex } = moveData;
+
+		// Remove card from opponent's hand
+		const opponentCardIndex = handIndex;
+		removeCardFromOpponentHand(opponentCardIndex);
+
+		// Make the move on the chess board
+		const move = chess.move({
+			from: from,
+			to: to,
+			promotion: promotion
+		});
+
+		if (move) {
+			// Update board display
+			board.position(chess.fen());
+
+			// Check game status
+			checkGameStatus();
+
+			// Switch turn if game not over
+			if (!gameOver) {
+				switchTurn();
+			}
+		}
+	}
+
+	function removeCardFromOpponentHand(index) {
+		// Determine current opponent
+		const opponentIsWhite = currentTurn === 'white';
+
+		if (opponentIsWhite) {
+			whiteHand.splice(index, 1);
+
+			// Draw a new card if deck isn't empty
+			if (whiteDeck.length > 0 && whiteHand.length < 5) {
+				whiteHand.push(MetachessDeck.drawCards(whiteDeck, 1)[0]);
+			}
+		} else {
+			blackHand.splice(index, 1);
+
+			// Draw a new card if deck isn't empty
+			if (blackDeck.length > 0 && blackHand.length < 5) {
+				blackHand.push(MetachessDeck.drawCards(blackDeck, 1)[0]);
+			}
+		}
+
+		// Update UI
+		updateDecks();
+		updateHands();
+	}
+
+	function disableAllControls() {
+		document.getElementById('white-redraw').disabled = true;
+		document.getElementById('white-pass').disabled = true;
+		document.getElementById('black-redraw').disabled = true;
+		document.getElementById('black-pass').disabled = true;
+	}
+
+	function setupBoardClickHandler() {
+		board.on('click', function (event) {
+			// If this is a multiplayer game, check if it's your turn
+			if (playerColor && currentTurn !== playerColor) {
+				document.getElementById('status-message').textContent = "Not your turn";
+				return;
+			}
+
+			// Rest of your click handler code...
+		});
+	}
+
 	return {
 		init,
 		redrawHand,
-		passTurn
+		passTurn,
+		initMultiplayer
 	};
 })();

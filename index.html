@@ -17,6 +17,13 @@
 			<div id="game-status">Waiting for opponent...</div>
 		</header>
 
+		<!-- Add this somewhere prominent in your UI, if it's not already there -->
+		<div class="game-info-panel">
+			<div id="game-status" class="game-status">Waiting for game to start...</div>
+			<div id="connection-status" class="connection-status">Not connected</div>
+			<div id="player-color" class="player-color"></div>
+		</div>
+
 		<!-- Black player interface -->
 		<div class="player-frame" id="black-player">
 			<div class="player-info">
@@ -42,6 +49,12 @@
 			<div id="chessboard"></div>
 		</div>
 
+		<!-- Game controls -->
+		<div class="game-controls">
+			<!-- Your existing controls might be here -->
+			<button id="multiplayer-btn" class="button">Play Multiplayer</button>
+		</div>
+
 		<!-- White player interface -->
 		<div class="player-frame" id="white-player">
 			<div class="player-info">
@@ -58,12 +71,30 @@
 		</div>
 
 		<!-- Game modals -->
+		<div class="modal" id="multiplayer-modal">
+			<div class="modal-content">
+				<h2>Multiplayer Options</h2>
+				<button id="create-game-btn">Create New Game</button>
+				<div class="separator">OR</div>
+				<div class="join-game-form">
+					<input type="text" id="game-id-input" placeholder="Enter Game ID">
+					<button id="join-game-btn">Join Game</button>
+				</div>
+				<button id="cancel-multiplayer" class="cancel-button"
+					onclick="console.log('INLINE: Cancel multiplayer clicked'); document.getElementById('multiplayer-modal').style.display = 'none';">Cancel</button>
+			</div>
+		</div>
+
 		<div class="modal" id="waiting-modal">
 			<div class="modal-content">
 				<h2>Waiting for opponent</h2>
 				<p>Share this game link with a friend to play:</p>
-				<input type="text" id="game-link" readonly>
-				<button id="copy-link">Copy Link</button>
+				<div class="copy-link-container">
+					<input type="text" id="game-link" readonly>
+					<button id="copy-link">Copy Link</button>
+				</div>
+				<button id="cancel-waiting" class="cancel-button"
+					onclick="console.log('INLINE: Cancel waiting clicked'); document.getElementById('waiting-modal').style.display = 'none';">Cancel</button>
 			</div>
 		</div>
 	</div>
