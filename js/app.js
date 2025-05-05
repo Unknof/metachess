@@ -2,6 +2,7 @@
 
 console.log('App version running on port: ' + window.location.port);
 
+// Wait for DOM to be fully loaded before initializing
 document.addEventListener('DOMContentLoaded', function () {
 	console.log('MetaChess app initialized');
 	console.log('DOM Content Loaded - Starting to attach event handlers');
@@ -39,22 +40,45 @@ document.addEventListener('DOMContentLoaded', function () {
 	// Initialize multiplayer functionality
 	const multiplayerBtn = document.getElementById('multiplayer-btn');
 	if (multiplayerBtn) {
-		multiplayerBtn.addEventListener('click', () => {
+		multiplayerBtn.addEventListener('click', function () {
+			console.log('Multiplayer button clicked');
+			document.getElementById('multiplayer-modal').style.display = 'flex';
+		});
+	}
+
+	// Set up other event listeners for your buttons
+	const createGameBtn = document.getElementById('create-game-btn');
+	if (createGameBtn) {
+		createGameBtn.addEventListener('click', function () {
 			MetachessGame.initMultiplayer();
 		});
-	} else {
-		// Check if we have a game ID in the URL
-		const urlParams = new URLSearchParams(window.location.search);
-		const gameId = urlParams.get('game');
-		const multiplayerMode = urlParams.get('multiplayer');
+	}
 
-		if (gameId || multiplayerMode === 'true') {
-			// We're joining a game or explicitly requesting multiplayer mode
-			MetachessGame.initMultiplayer();
-		} else {
-			// Default to single player mode
-			document.getElementById('game-status').textContent = 'Single Player Mode';
-		}
+	const joinGameBtn = document.getElementById('join-game-btn');
+	if (joinGameBtn) {
+		joinGameBtn.addEventListener('click', function () {
+			const gameId = document.getElementById('game-id-input').value.trim();
+			if (gameId) {
+				MetachessGame.initMultiplayer().then(() => {
+					setTimeout(() => {
+						MetachessSocket.joinGame(gameId);
+					}, 500);
+				});
+			}
+		});
+	}
+
+	// Check if we have a game ID in the URL
+	const urlParams = new URLSearchParams(window.location.search);
+	const gameId = urlParams.get('game');
+	const multiplayerMode = urlParams.get('multiplayer');
+
+	if (gameId || multiplayerMode === 'true') {
+		// We're joining a game or explicitly requesting multiplayer mode
+		MetachessGame.initMultiplayer();
+	} else {
+		// Default to single player mode
+		document.getElementById('game-status').textContent = 'Single Player Mode';
 	}
 
 	// Make sure both modals are hidden when an opponent joins

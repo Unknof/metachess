@@ -29,8 +29,11 @@ const MetachessSocket = (function () {
 				socket.onopen = () => {
 					console.log('WebSocket connection established');
 					clearTimeout(connectionTimeout);
-					document.getElementById('connection-status').textContent = 'Connected';
-					document.getElementById('connection-status').className = 'connection-status connected';
+					const connectionStatus = document.getElementById('connection-status');
+					if (connectionStatus) {
+						connectionStatus.textContent = 'Connected';
+						connectionStatus.className = 'connection-status connected';
+					}
 					startHeartbeat();
 					resolve(true);
 				};
