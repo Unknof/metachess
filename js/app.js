@@ -14,9 +14,7 @@ document.addEventListener('DOMContentLoaded', function () {
 	MetachessGame.init(chess, board);
 
 	// Add event listeners for controls
-	document.getElementById('white-redraw').addEventListener('click', MetachessGame.redrawHand);
 	document.getElementById('white-pass').addEventListener('click', MetachessGame.passTurn);
-	document.getElementById('black-redraw').addEventListener('click', MetachessGame.redrawHand);
 	document.getElementById('black-pass').addEventListener('click', MetachessGame.passTurn);
 
 	// Copy game link button
@@ -37,12 +35,25 @@ document.addEventListener('DOMContentLoaded', function () {
 		document.getElementById('waiting-modal').style.display = 'none';
 	};
 
-	// Initialize multiplayer functionality
+	// Replace your existing multiplayer button code with this
 	const multiplayerBtn = document.getElementById('multiplayer-btn');
 	if (multiplayerBtn) {
-		multiplayerBtn.addEventListener('click', function () {
-			console.log('Multiplayer button clicked');
-			document.getElementById('multiplayer-modal').style.display = 'flex';
+		// Remove any existing event listeners
+		multiplayerBtn.replaceWith(multiplayerBtn.cloneNode(true));
+
+		// Get the fresh element and add listener
+		const freshBtn = document.getElementById('multiplayer-btn');
+		freshBtn.addEventListener('click', function (e) {
+			e.preventDefault();
+			console.log('Multiplayer button clicked - forcing display');
+
+			// Force display style directly
+			const modal = document.getElementById('multiplayer-modal');
+			modal.style.display = 'flex';
+			modal.style.opacity = '1';
+			modal.style.visibility = 'visible';
+
+			console.log('Modal style set to:', modal.style.display);
 		});
 	}
 

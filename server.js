@@ -1,12 +1,17 @@
 // server.js (create this in your project root)
 const express = require('express');
+const app = express();
 const http = require('http');
 const WebSocket = require('ws');
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
 
-// Create express app
-const app = express();
+// Add CORS headers
+app.use((req, res, next) => {
+	res.header('Access-Control-Allow-Origin', '*');
+	res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+	next();
+});
 
 // Serve static files
 app.use(express.static(__dirname));

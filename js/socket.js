@@ -147,6 +147,13 @@ const MetachessSocket = (function () {
 		return true;
 	}
 
+	function reconnect() {
+		return init().catch(err => {
+			console.error("Reconnection failed:", err);
+			return false;
+		});
+	}
+
 	return {
 		init,
 		on,
@@ -156,6 +163,7 @@ const MetachessSocket = (function () {
 		setGameInfo,
 		getConnectionInfo,
 		sendPass,
+		reconnect,  // Add this line
 		isConnected() {
 			return socket && socket.readyState === WebSocket.OPEN;
 		},
