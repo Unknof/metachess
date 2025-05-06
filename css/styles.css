@@ -634,12 +634,14 @@ button:disabled {
 	}
 
 	.piece-card {
-		width: 18%;
+		width: 19%;
 		/* Make each card take up 1/5 of container width minus gaps */
-		height: 100px;
+		height: 50px;
+		/* Reduced from 80px - about 40% smaller */
 		min-width: unset;
-		padding: 3px;
+		padding: 2px;
 		margin: 0;
+		flex-shrink: 0;
 	}
 
 	.card-content {
@@ -713,14 +715,15 @@ button:disabled {
 
 	.piece-card {
 		width: 19%;
-		height: 80px;
+		height: 50px;
+		/* Reduced from 80px - about 40% smaller */
 		margin: 0 1px;
 		padding: 2px;
 		flex-shrink: 0;
 	}
 
 	.card-content {
-		transform: scale(0.85);
+		transform: scale(0.9);
 	}
 
 	/* Ensure piece icons are visible */
@@ -732,12 +735,13 @@ button:disabled {
 	/* Fix piece images */
 	.piece-card .piece-image {
 		height: 30px;
-		margin: 3px 0;
+		margin: 0;
+		/* Remove margins */
 	}
 
 	/* Make piece name smaller */
 	.piece-card .piece-name {
-		font-size: 10px;
+		display: none;
 	}
 }
 
@@ -832,8 +836,8 @@ button:disabled {
 	.piece-card {
 		width: 19%;
 		/* Allow some tiny gap */
-		height: 80px;
-		/* Much smaller */
+		height: 50px;
+		/* Reduced from 80px - about 40% smaller */
 		margin: 0;
 		padding: 2px;
 		transform: scale(0.95);

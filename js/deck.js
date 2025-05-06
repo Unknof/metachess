@@ -89,12 +89,23 @@ const MetachessDeck = (function () {
 			const lichessPiece = `${pieceColor}${pieceChar.toUpperCase()}`;
 			const pieceUrl = `https://raw.githubusercontent.com/lichess-org/lila/master/public/piece/cburnett/${lichessPiece}.svg`;
 
-			card.innerHTML = `
-				<div class="card-content">
-					<img src="${pieceUrl}" class="piece-image" alt="${pieceName}">
-					<div class="piece-name">${pieceName}</div>
-				</div>
-			`;
+			// For mobile: simplified card with just the image, no text
+			if (window.innerWidth <= 768) {
+				card.innerHTML = `
+					<div class="card-content">
+						<img src="${pieceUrl}" class="piece-image" alt="${pieceName}">
+					</div>
+				`;
+			} else {
+				// Desktop version keeps the piece name
+				card.innerHTML = `
+					<div class="card-content">
+						<img src="${pieceUrl}" class="piece-image" alt="${pieceName}">
+						<div class="piece-name">${pieceName}</div>
+					</div>
+				`;
+			}
+
 			container.appendChild(card);
 		});
 	}
