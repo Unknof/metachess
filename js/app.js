@@ -13,9 +13,13 @@ document.addEventListener('DOMContentLoaded', function () {
 	// Initialize game with the chess and board instances
 	MetachessGame.init(chess, board);
 
-	// Add event listeners for controls
-	document.getElementById('white-pass').addEventListener('click', MetachessGame.passTurn);
-	document.getElementById('black-pass').addEventListener('click', MetachessGame.passTurn);
+	// Add pass button handler
+	const passButton = document.getElementById('pass-turn');
+	if (passButton) {
+		passButton.addEventListener('click', function () {
+			MetachessGame.passTurn();
+		});
+	}
 
 	// Copy game link button
 	document.getElementById('copy-link').addEventListener('click', function () {
@@ -139,13 +143,23 @@ document.addEventListener('DOMContentLoaded', function () {
 			event.target.id === 'cancel-waiting' ||
 			event.target.closest('#cancel-multiplayer') ||
 			event.target.closest('#cancel-waiting')) {
-
+			// Button handling code
 		}
 
-		// Check if any modals are currently visible
-		const multiplayerModalStyle = window.getComputedStyle(document.getElementById('multiplayer-modal'));
-		const waitingModalStyle = window.getComputedStyle(document.getElementById('waiting-modal'));
+		// Check if any modals are currently visible - DEFENSIVE CODE
+		const multiplayerModal = document.getElementById('multiplayer-modal');
+		const waitingModal = document.getElementById('waiting-modal');
 
+		// Only access style if elements exist
+		if (multiplayerModal) {
+			const multiplayerModalStyle = window.getComputedStyle(multiplayerModal);
+			// Rest of the code using multiplayerModalStyle
+		}
+
+		if (waitingModal) {
+			const waitingModalStyle = window.getComputedStyle(waitingModal);
+			// Rest of the code using waitingModalStyle
+		}
 	});
 
 	console.log('Checking for CSS conflicts');

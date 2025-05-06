@@ -12,27 +12,9 @@
 
 <body>
 	<div class="container">
-		<header>
-			<!-- MetaChess header removed -->
-		</header>
-
-		<!-- Black player interface -->
-		<div class="player-frame" id="black-player">
-			<div class="player-info">
-				<span class="player-name">BLACK</span>
-				<span class="deck-count">Deck: <span id="black-deck-count">60</span></span>
-			</div>
-			<div class="card-container" id="black-cards">
-				<!-- Cards will be generated here by JavaScript -->
-			</div>
-			<div class="player-controls">
-				<button id="black-pass" disabled>Pass Turn</button>
-			</div>
-		</div>
-
-		<!-- Status display -->
-		<div id="status-frame" style="display: none;">
-			<div id="status-message">Ready</div>
+		<!-- Only showing deck count for opponent, no cards -->
+		<div class="opponent-info">
+			<span class="deck-count">Opponent's Deck: <span id="opponent-deck-count">60</span></span>
 		</div>
 
 		<!-- Chess board -->
@@ -40,40 +22,35 @@
 			<div id="chessboard"></div>
 		</div>
 
-		<!-- Add this where you want the clocks to appear -->
+		<!-- Streamlined controls - time and pass button together -->
 		<div class="time-controls">
 			<div class="timer white-timer">
-				<span class="player-label">White:</span>
 				<span id="white-time">3:00</span>
 			</div>
+			<button id="pass-turn" class="pass-button">Pass</button>
+			<button id="multiplayer-btn" class="multiplayer-button">Multi</button>
 			<div class="timer black-timer">
-				<span class="player-label">Black:</span>
 				<span id="black-time">3:00</span>
 			</div>
 		</div>
 
-		<!-- Game controls -->
-		<div class="game-controls">
-			<!-- Your existing controls might be here -->
-			<button id="multiplayer-btn" class="button">Play Multiplayer</button>
-		</div>
-
-		<!-- White player interface -->
-		<div class="player-frame" id="white-player">
-			<div class="player-info">
-				<span class="player-name">WHITE</span>
-				<span class="deck-count">Deck: <span id="white-deck-count">60</span></span>
+		<!-- Only player's cards with deck count -->
+		<div class="player-frame" id="player-area">
+			<div class="deck-info">
+				<span class="deck-count">Deck: <span id="player-deck-count">60</span></span>
 			</div>
-			<div class="card-container" id="white-cards">
+			<div class="card-container" id="player-cards">
 				<!-- Cards will be generated here by JavaScript -->
 			</div>
-			<div class="player-controls">
-				<button id="white-pass" disabled>Pass Turn</button>
-			</div>
 		</div>
 
-		<!-- Game modals -->
-		<div class="modal" id="multiplayer-modal">
+		<!-- Keep status frame but hidden -->
+		<div id="status-frame" style="display: none;">
+			<div id="status-message">Ready</div>
+		</div>
+
+		<!-- Keep your modals but ensure they're hidden by default -->
+		<div class="modal" id="multiplayer-modal" style="display: none;">
 			<div class="modal-content">
 				<h2>Multiplayer Options</h2>
 				<button id="create-game-btn">Create New Game</button>
@@ -86,7 +63,7 @@
 			</div>
 		</div>
 
-		<div class="modal" id="waiting-modal">
+		<div class="modal" id="waiting-modal" style="display: none;">
 			<div class="modal-content">
 				<h2>Waiting for opponent</h2>
 				<p>Share this game link with a friend to play:</p>

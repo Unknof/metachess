@@ -47,6 +47,7 @@ const MetachessGame = (function () {
 		});
 	}
 
+	// Add button initialization to the init function
 	function init(chessInstance, boardInstance) {
 		chess = chessInstance;
 		board = boardInstance;
@@ -87,13 +88,33 @@ const MetachessGame = (function () {
 		//startClock();
 
 		setupMobileCardContainers();
+
+		// Setup pass button handler for both colors
+		document.getElementById('pass-turn').addEventListener('click', () => {
+			passTurn();
+		});
 	}
 
 	function updateDecks() {
-		document.getElementById('white-deck-count').textContent = whiteDeck.length;
-		document.getElementById('black-deck-count').textContent = blackDeck.length;
+		// Use the new IDs from your streamlined HTML
+		if (document.getElementById('player-deck-count')) {
+			if (playerColor) {
+				// Multiplayer - show player's deck count
+				document.getElementById('player-deck-count').textContent =
+					playerColor === 'white' ? whiteDeck.length : blackDeck.length;
+				document.getElementById('opponent-deck-count').textContent =
+					playerColor === 'white' ? blackDeck.length : whiteDeck.length;
+			} else {
+				// Singleplayer - show current turn's deck count
+				document.getElementById('player-deck-count').textContent =
+					currentTurn === 'white' ? whiteDeck.length : blackDeck.length;
+				document.getElementById('opponent-deck-count').textContent =
+					currentTurn === 'white' ? blackDeck.length : whiteDeck.length;
+			}
+		}
 	}
 
+	// Update updateHands function for the new simplified UI
 	function updateHands() {
 		console.log("Updating hands, current turn:", currentTurn);
 
@@ -103,29 +124,40 @@ const MetachessGame = (function () {
 			card.replaceWith(card.cloneNode(true)); // Clone to remove event listeners
 		});
 
-		// Check if we're in multiplayer mode
+		// Determine which player we are in multiplayer, or use current turn in single player
+		let playerToRender, containerToUse;
+
 		if (playerColor) {
-			// In multiplayer, only show actual cards for the player's color
-			if (playerColor === 'white') {
-				// White player - show white cards, hide black cards
-				MetachessDeck.renderCards(whiteHand, 'white-cards', 'white', currentTurn === 'white');
-				renderCardBacks(blackHand.length, 'black-cards');
-			} else {
-				// Black player - show black cards, hide white cards
-				renderCardBacks(whiteHand.length, 'white-cards');
-				MetachessDeck.renderCards(blackHand, 'black-cards', 'black', currentTurn === 'black');
-			}
+			// In multiplayer - we only ever render our own cards
+			playerToRender = playerColor;
+			containerToUse = 'player-cards';
+
+			// Update deck counts
+			document.getElementById('player-deck-count').textContent =
+				playerColor === 'white' ? whiteDeck.length : blackDeck.length;
+			document.getElementById('opponent-deck-count').textContent =
+				playerColor === 'white' ? blackDeck.length : whiteDeck.length;
 		} else {
-			// In single player, show both hands
-			MetachessDeck.renderCards(whiteHand, 'white-cards', 'white', currentTurn === 'white');
-			MetachessDeck.renderCards(blackHand, 'black-cards', 'black', currentTurn === 'black');
+			// In single player - render current turn's cards
+			playerToRender = currentTurn;
+			containerToUse = 'player-cards';
+
+			// Update deck counts
+			document.getElementById('player-deck-count').textContent =
+				currentTurn === 'white' ? whiteDeck.length : blackDeck.length;
+			document.getElementById('opponent-deck-count').textContent =
+				currentTurn === 'white' ? blackDeck.length : whiteDeck.length;
 		}
 
-		// Add event listeners to current player's cards only
-		const activeContainerId = `${currentTurn}-cards`;
-		console.log("Adding listeners to:", activeContainerId);
+		// Render only current player's cards
+		if (playerToRender === 'white') {
+			MetachessDeck.renderCards(whiteHand, containerToUse, 'white', currentTurn === 'white');
+		} else {
+			MetachessDeck.renderCards(blackHand, containerToUse, 'black', currentTurn === 'black');
+		}
 
-		const activeCards = document.querySelectorAll(`#${activeContainerId} .piece-card`);
+		// Add click handlers to cards
+		const activeCards = document.querySelectorAll(`#${containerToUse} .piece-card`);
 		activeCards.forEach(card => {
 			card.addEventListener('click', () => {
 				console.log("Card clicked:", card.dataset.pieceType, card.dataset.index);
@@ -138,29 +170,19 @@ const MetachessGame = (function () {
 		clearCardSelection();
 	}
 
-	// Add this new function to render card backs instead of actual cards
-	function renderCardBacks(count, containerId) {
-		const container = document.getElementById(containerId);
-		container.innerHTML = '';
-
-		for (let i = 0; i < count; i++) {
-			const cardBack = document.createElement('div');
-			cardBack.className = 'piece-card card-back';
-			cardBack.innerHTML = '<div class="card-inner">?</div>';
-			container.appendChild(cardBack);
-		}
-	}
-
+	// Update togglePlayerControls to use the single pass button
 	function togglePlayerControls() {
 		console.log("Toggle controls for turn:", currentTurn);
 
-		// Enable/disable controls based on current turn - REMOVED redraw buttons
-		document.getElementById('white-pass').disabled = (currentTurn !== 'white');
-		document.getElementById('black-pass').disabled = (currentTurn !== 'black');
+		const passButton = document.getElementById('pass-turn');
 
-		// Update status message
-		const playerName = currentTurn.toUpperCase();
-		//updateStatusMessage(`${playerName}'s turn`);
+		// Enable pass button only if it's current player's turn in multiplayer 
+		// or always in singleplayer
+		if (playerColor) {
+			passButton.disabled = (currentTurn !== playerColor);
+		} else {
+			passButton.disabled = false;
+		}
 	}
 
 	function selectCard(pieceType, index) {
@@ -874,9 +896,11 @@ const MetachessGame = (function () {
 	}
 
 	function disableAllControls() {
-		// Removed redraw buttons
-		document.getElementById('white-pass').disabled = true;
-		document.getElementById('black-pass').disabled = true;
+		// Use the single pass button instead of white-pass and black-pass
+		const passButton = document.getElementById('pass-turn');
+		if (passButton) {
+			passButton.disabled = true;
+		}
 	}
 
 	function setupBoardClickHandler() {

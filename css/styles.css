@@ -551,6 +551,16 @@ button:disabled {
 	color: red;
 }
 
+/* Multiplayer button styles */
+.multiplayer-button {
+	margin: 0 4px;
+	padding: 4px 8px;
+	height: 30px;
+	font-size: 12px;
+	background-color: #9c27b0;
+	/* Purple color to distinguish it */
+}
+
 /* Responsive design */
 @media (max-width: 768px) {
 	body {
@@ -673,6 +683,11 @@ button:disabled {
 		padding: 5px;
 	}
 
+	/* Show multiplayer button on mobile */
+	.multiplayer-button {
+		display: block !important;
+	}
+
 	/* Hide multiplayer button on mobile if not needed */
 	.game-controls {
 		display: none;
@@ -685,6 +700,154 @@ button:disabled {
 		font-size: 12px;
 	}
 	*/
+
+	.card-container {
+		display: flex;
+		justify-content: space-between;
+		flex-wrap: nowrap;
+		width: 100%;
+		max-width: 100%;
+		overflow-x: visible;
+		padding: 0;
+	}
+
+	.piece-card {
+		width: 19%;
+		height: 80px;
+		margin: 0 1px;
+		padding: 2px;
+		flex-shrink: 0;
+	}
+
+	.card-content {
+		transform: scale(0.85);
+	}
+
+	/* Ensure piece icons are visible */
+	.piece-card .piece {
+		font-size: 24px;
+		margin: 0;
+	}
+
+	/* Fix piece images */
+	.piece-card .piece-image {
+		height: 30px;
+		margin: 3px 0;
+	}
+
+	/* Make piece name smaller */
+	.piece-card .piece-name {
+		font-size: 10px;
+	}
+}
+
+/* Mobile-first styles */
+@media (max-width: 768px) {
+	.container {
+		display: flex;
+		flex-direction: column;
+		height: 100vh;
+		padding: 0;
+		margin: 0;
+		gap: 4px;
+	}
+
+	/* Hide all unnecessary elements */
+	header,
+	.game-controls,
+	.player-name,
+	.player-label,
+	.scroll-indicator {
+		display: none !important;
+	}
+
+	/* Opponent info is just the deck count */
+	.opponent-info {
+		text-align: center;
+		padding: 2px 0;
+		font-size: 12px;
+		background: #f0f0f0;
+	}
+
+	/* Board takes only what it needs */
+	#board-container {
+		width: 100%;
+		height: auto;
+		flex-grow: 0;
+	}
+
+	#chessboard {
+		width: 100vw;
+		height: 100vw;
+		max-height: 50vh;
+		max-width: 100%;
+	}
+
+	/* Time controls with pass button in middle */
+	.time-controls {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		padding: 4px;
+		background: #e0e0e0;
+	}
+
+	.timer {
+		font-size: 14px;
+		font-weight: bold;
+		padding: 4px;
+		flex: 1;
+		text-align: center;
+	}
+
+	.pass-button {
+		margin: 0 4px;
+		padding: 4px 8px;
+		height: 30px;
+		font-size: 12px;
+	}
+
+	/* Cards optimized to always show all 5 */
+	.player-frame {
+		width: 100%;
+		padding: 2px 0;
+	}
+
+	.deck-info {
+		font-size: 12px;
+		text-align: center;
+		padding: 2px 0;
+	}
+
+	.card-container {
+		display: flex;
+		justify-content: space-around;
+		width: 100%;
+		padding: 0;
+		margin: 0;
+		overflow-x: hidden;
+		/* Prevent scrolling */
+	}
+
+	.piece-card {
+		width: 19%;
+		/* Allow some tiny gap */
+		height: 80px;
+		/* Much smaller */
+		margin: 0;
+		padding: 2px;
+		transform: scale(0.95);
+	}
+
+	.card-content {
+		transform: scale(0.85);
+	}
+
+	/* Ensure piece icons are visible */
+	.piece-card .piece {
+		font-size: 24px;
+		margin: 0;
+	}
 }
 
 /* Small phones */
