@@ -28,6 +28,9 @@ const MetachessGame = (function () {
 
 		console.log("Initializing game...");
 
+		// Clear any move highlighting
+		updateLastMoveHighlighting(null, null);
+
 		// Initialize decks with appropriate case
 		whiteDeck = MetachessDeck.createDeck();
 		blackDeck = MetachessDeck.createDeck().map(piece => piece.toUpperCase());
@@ -180,14 +183,20 @@ const MetachessGame = (function () {
 
 					// Convert UCI format (e.g. "c2c4") to chess.js format
 					let move = null;
+					// Declare these variables outside the if-block to make them available in the entire scope
+					let from = null;
+					let to = null;
+					let promotion = undefined;
+					let isKingCapture = false;
+
 					if (moveStr && moveStr.length >= 4) {
-						const from = moveStr.substring(0, 2);
-						const to = moveStr.substring(2, 4);
-						const promotion = moveStr.length > 4 ? moveStr.substring(4, 5) : undefined;
+						from = moveStr.substring(0, 2);
+						to = moveStr.substring(2, 4);
+						promotion = moveStr.length > 4 ? moveStr.substring(4, 5) : undefined;
 
 						// NEW: Check if the target square has a king
 						const targetSquare = chess.get(to);
-						const isKingCapture = targetSquare && targetSquare.type === 'k';
+						isKingCapture = targetSquare && targetSquare.type === 'k';
 
 						// Try to make the move in chess.js format
 						move = chess.move({
@@ -200,10 +209,22 @@ const MetachessGame = (function () {
 					}
 
 					if (move) {
-						console.log("Move was legal and executed");
-
 						// Update board display
 						board.position(chess.fen());
+
+						// Highlight the move that was just made - now using variables from the wider scope
+						updateLastMoveHighlighting(move.from, move.to);
+
+						// NEW: If a king was captured, declare the capturing player as winner
+						if (isKingCapture) {
+							const winner = currentTurn === 'white' ? 'WHITE' : 'BLACK';
+							document.getElementById('status-message').textContent = `${winner} captured the king and WINS!`;
+							gameOver = true;
+							disableAllControls();
+						} else {
+							// Check game status if no king was captured
+							checkGameStatus();
+						}
 
 						// Remove the card from hand
 						removeCardFromHand(index);
@@ -216,17 +237,6 @@ const MetachessGame = (function () {
 							pieceType: pieceType,
 							handIndex: index
 						});
-
-						// NEW: Check for king capture
-						if (move.captured === 'k') {
-							const winner = currentTurn === 'white' ? 'WHITE' : 'BLACK';
-							document.getElementById('status-message').textContent = `${winner} captured the king and WINS!`;
-							gameOver = true;
-							disableAllControls();
-						} else {
-							// Check game status if no king was captured
-							checkGameStatus();
-						}
 
 						// Switch turn if game not over
 						if (!gameOver) {
@@ -668,6 +678,9 @@ const MetachessGame = (function () {
 			// Update board display
 			board.position(chess.fen());
 
+			// Highlight last move
+			updateLastMoveHighlighting(move.from, move.to);
+
 			// NEW: If a king was captured, declare the capturing player as winner
 			if (isKingCapture) {
 				const winner = currentTurn === 'white' ? 'WHITE' : 'BLACK';
@@ -767,6 +780,33 @@ const MetachessGame = (function () {
 				currentTurn === playerColor ? 'Your turn' : 'Opponent\'s turn';
 		} else {
 			document.getElementById('game-status').textContent = `${currentTurn.toUpperCase()}'s turn`;
+		}
+	}
+
+	// Add this helper function
+	function updateLastMoveHighlighting(from, to) {
+		// Remove any existing highlights
+		const squares = document.querySelectorAll('.square-55d63');
+		squares.forEach(square => {
+			square.classList.remove('highlight-square');
+			square.classList.remove('highlight-source');
+			square.classList.remove('highlight-target');
+		});
+
+		// Add highlighting to the new source and target squares
+		if (from && to) {
+			const fromSquare = document.querySelector(`.square-${from}`);
+			const toSquare = document.querySelector(`.square-${to}`);
+
+			if (fromSquare) {
+				fromSquare.classList.add('highlight-square');
+				fromSquare.classList.add('highlight-source');
+			}
+
+			if (toSquare) {
+				toSquare.classList.add('highlight-square');
+				toSquare.classList.add('highlight-target');
+			}
 		}
 	}
 
