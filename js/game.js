@@ -185,6 +185,10 @@ const MetachessGame = (function () {
 						const to = moveStr.substring(2, 4);
 						const promotion = moveStr.length > 4 ? moveStr.substring(4, 5) : undefined;
 
+						// NEW: Check if the target square has a king
+						const targetSquare = chess.get(to);
+						const isKingCapture = targetSquare && targetSquare.type === 'k';
+
 						// Try to make the move in chess.js format
 						move = chess.move({
 							from: from,
@@ -213,8 +217,16 @@ const MetachessGame = (function () {
 							handIndex: index
 						});
 
-						// Check game status
-						checkGameStatus();
+						// NEW: Check for king capture
+						if (move.captured === 'k') {
+							const winner = currentTurn === 'white' ? 'WHITE' : 'BLACK';
+							document.getElementById('status-message').textContent = `${winner} captured the king and WINS!`;
+							gameOver = true;
+							disableAllControls();
+						} else {
+							// Check game status if no king was captured
+							checkGameStatus();
+						}
 
 						// Switch turn if game not over
 						if (!gameOver) {
@@ -311,7 +323,7 @@ const MetachessGame = (function () {
 	}
 
 	function checkGameStatus() {
-		// Check if the game is over
+		// Check standard chess conditions
 		if (chess.in_checkmate()) {
 			const winner = chess.turn() === 'w' ? 'BLACK' : 'WHITE';
 			document.getElementById('status-message').textContent = `CHECKMATE! ${winner} wins!`;
@@ -327,12 +339,44 @@ const MetachessGame = (function () {
 			document.getElementById('status-message').textContent = `${inCheck} is in CHECK!`;
 		}
 
+		// NEW: Check for no playable cards win condition
+		if (!gameOver) {
+			const whiteHasCards = hasPlayableCards('white');
+			const blackHasCards = hasPlayableCards('black');
+
+			if (!whiteHasCards) {
+				document.getElementById('status-message').textContent = 'WHITE has no playable cards! BLACK wins!';
+				gameOver = true;
+			} else if (!blackHasCards) {
+				document.getElementById('status-message').textContent = 'BLACK has no playable cards! WHITE wins!';
+				gameOver = true;
+			}
+		}
+
 		// If game is over, disable all controls
 		if (gameOver) {
 			disableAllControls();
+
+			// Notify other player in multiplayer mode
+			if (playerColor && MetachessSocket.isConnected()) {
+				MetachessSocket.sendGameOver({
+					gameId: MetachessSocket.gameId,
+					winner: gameOver ? (currentTurn === 'white' ? 'black' : 'white') : null,
+					reason: document.getElementById('status-message').textContent
+				});
+			}
 		}
 
 		return gameOver;
+	}
+
+	// Add helper function to check if a player has playable cards
+	function hasPlayableCards(color) {
+		if (color === 'white') {
+			return whiteHand.length > 0 || whiteDeck.length > 0;
+		} else {
+			return blackHand.length > 0 || blackDeck.length > 0;
+		}
 	}
 
 	// Fix the handlePassInMultiplayer function
@@ -609,8 +653,9 @@ const MetachessGame = (function () {
 		// Extract move data
 		const { from, to, promotion } = moveData;
 
-		// Remove card from opponent's hand - this is handled by the server
-		// and will be reflected in the hand_update or opponent_move message
+		// NEW: Check if the target square has a king
+		const targetSquare = chess.get(to);
+		const isKingCapture = targetSquare && targetSquare.type === 'k';
 
 		// Make the move on the chess board
 		const move = chess.move({
@@ -623,8 +668,25 @@ const MetachessGame = (function () {
 			// Update board display
 			board.position(chess.fen());
 
-			// Check game status (checkmate, etc.)
-			checkGameStatus();
+			// NEW: If a king was captured, declare the capturing player as winner
+			if (isKingCapture) {
+				const winner = currentTurn === 'white' ? 'WHITE' : 'BLACK';
+				document.getElementById('status-message').textContent = `${winner} captured the king and WINS!`;
+				gameOver = true;
+				disableAllControls();
+
+				// Notify other player in multiplayer mode
+				if (playerColor && MetachessSocket.isConnected()) {
+					MetachessSocket.sendGameOver({
+						gameId: MetachessSocket.gameId,
+						winner: currentTurn,
+						reason: `${winner} captured the king`
+					});
+				}
+			} else {
+				// Only check other game status if no king was captured
+				checkGameStatus();
+			}
 		}
 	}
 
@@ -711,6 +773,20 @@ const MetachessGame = (function () {
 	return {
 		init,
 		passTurn,
-		initMultiplayer
+		initMultiplayer,
+		// New methods for testing
+		getCurrentTurn() {
+			return currentTurn;
+		},
+		getWhiteHand() {
+			return [...whiteHand]; // Return a copy to prevent test from modifying original
+		},
+		getBlackHand() {
+			return [...blackHand];
+		},
+		isGameOver() {
+			return gameOver;
+		},
+		selectCard // Expose this existing method
 	};
 })();

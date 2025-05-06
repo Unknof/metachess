@@ -147,6 +147,22 @@ const MetachessSocket = (function () {
 		return true;
 	}
 
+	function sendGameOver(data) {
+		if (!socket || socket.readyState !== WebSocket.OPEN) {
+			console.error("Cannot send game over: Socket not connected");
+			return false;
+		}
+
+		socket.send(JSON.stringify({
+			type: 'game_over',
+			gameId: data.gameId,
+			winner: data.winner,
+			reason: data.reason
+		}));
+
+		return true;
+	}
+
 	function reconnect() {
 		return init().catch(err => {
 			console.error("Reconnection failed:", err);
@@ -163,11 +179,11 @@ const MetachessSocket = (function () {
 		setGameInfo,
 		getConnectionInfo,
 		sendPass,
-		reconnect,  // Add this line
+		reconnect,
+		sendGameOver,  // Add this new method
 		isConnected() {
 			return socket && socket.readyState === WebSocket.OPEN;
 		},
-		// Add these getter methods
 		get gameId() {
 			return gameId;
 		},
