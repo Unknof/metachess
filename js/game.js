@@ -33,6 +33,19 @@ const MetachessGame = (function () {
 		capture: new Audio('sounds/capture.mp3')
 	};
 
+	function setupMobileCardContainers() {
+		const cardContainers = document.querySelectorAll('.card-container');
+
+		cardContainers.forEach(container => {
+			// Add visual indicator for scrolling on mobile
+			if (window.innerWidth <= 768) {
+				const scrollIndicator = document.createElement('div');
+				scrollIndicator.className = 'scroll-indicator';
+				scrollIndicator.innerHTML = '&laquo; swipe &raquo;';
+				container.parentNode.insertBefore(scrollIndicator, container);
+			}
+		});
+	}
 
 	function init(chessInstance, boardInstance) {
 		chess = chessInstance;
@@ -72,6 +85,8 @@ const MetachessGame = (function () {
 
 		// Start the clock
 		//startClock();
+
+		setupMobileCardContainers();
 	}
 
 	function updateDecks() {
@@ -860,7 +875,12 @@ const MetachessGame = (function () {
 	}
 
 	function setupBoardClickHandler() {
-		board.on('click', function (event) {
+		board.on('click touchend', function (event) {
+			// Prevent double-firing on touch devices
+			if (event.type === 'touchend') {
+				event.preventDefault();
+			}
+
 			// If this is a multiplayer game, check if it's your turn
 			if (playerColor && currentTurn !== playerColor) {
 				document.getElementById('status-message').textContent = "Not your turn";

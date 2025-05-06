@@ -570,4 +570,129 @@ button:disabled {
 	.piece-symbol {
 		font-size: 36px;
 	}
+
+	button,
+	.piece-card,
+	.card-back {
+		min-height: 44px;
+		/* Minimum Apple recommended touch target size */
+	}
+
+	.card-container {
+		-webkit-overflow-scrolling: touch;
+		/* Smooth scrolling on iOS */
+	}
+
+	/* Add a bit of spacing between touch elements */
+	.player-controls button {
+		margin: 8px 0;
+	}
+
+	.collapsible-section {
+		border: 1px solid #ddd;
+		border-radius: 4px;
+		margin-bottom: 8px;
+	}
+
+	.collapsible-header {
+		padding: 8px;
+		background: #f5f5f5;
+		cursor: pointer;
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+	}
+
+	.collapsible-content {
+		padding: 10px;
+		display: none;
+	}
+
+	.collapsible-content.expanded {
+		display: block;
+	}
+}
+
+/* Small phones */
+@media (max-width: 480px) {
+	#chessboard {
+		width: 280px;
+		height: 280px;
+	}
+
+	.card-container {
+		flex-wrap: nowrap;
+		overflow-x: auto;
+		justify-content: flex-start;
+		padding: 5px;
+	}
+
+	.piece-card {
+		min-width: 80px;
+		height: 110px;
+		margin: 0 3px;
+		flex-shrink: 0;
+	}
+
+	.card-content {
+		transform: scale(0.85);
+	}
+
+	.modal-content {
+		width: 95%;
+		padding: 15px;
+	}
+}
+
+/* Medium-sized devices refinements */
+@media (max-width: 640px) {
+	.time-controls {
+		flex-direction: row;
+		margin: 5px auto;
+		width: 100%;
+	}
+
+	.player-info,
+	.player-controls {
+		flex-direction: column;
+		align-items: center;
+	}
+
+	button {
+		margin: 3px 0;
+		padding: 10px 15px;
+		width: 100%;
+	}
+}
+
+/* Landscape orientation with max-height */
+@media screen and (orientation: landscape) and (max-height: 500px) {
+	.container {
+		display: flex;
+		flex-direction: row;
+		flex-wrap: wrap;
+	}
+
+	#board-container {
+		order: 0;
+		width: 50%;
+	}
+
+	.player-frame {
+		width: 50%;
+	}
+
+	#status-frame {
+		width: 100%;
+		order: -1;
+	}
+
+	.time-controls {
+		position: absolute;
+		top: 10px;
+		right: 10px;
+		background: rgba(255, 255, 255, 0.8);
+		padding: 5px;
+		border-radius: 4px;
+	}
 }
