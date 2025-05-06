@@ -517,6 +517,40 @@ button:disabled {
 	border-radius: 4px;
 }
 
+/* Time controls */
+.time-controls {
+	display: flex;
+	justify-content: space-between;
+	margin: 10px 0;
+	max-width: 400px;
+}
+
+.timer {
+	padding: 5px 10px;
+	border-radius: 4px;
+	font-family: monospace;
+	font-size: 16px;
+	font-weight: bold;
+}
+
+.white-timer {
+	background-color: #f0f0f0;
+	color: #000;
+}
+
+.black-timer {
+	background-color: #333;
+	color: #fff;
+}
+
+.timer.active {
+	box-shadow: 0 0 5px 2px gold;
+}
+
+.timer.low-time {
+	color: red;
+}
+
 /* Responsive design */
 @media (max-width: 768px) {
 	body {

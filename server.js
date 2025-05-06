@@ -6,6 +6,8 @@ const WebSocket = require('ws');
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
 
+const DEFAULT_TIME_SECONDS = 180; // 3 minutes
+const INCREMENT_SECONDS = 1;      // 1 second increment
 // Add CORS headers
 app.use((req, res, next) => {
 	res.header('Access-Control-Allow-Origin', '*');
@@ -108,7 +110,13 @@ wss.on('connection', (socket) => {
 						blackDeck: blackDeck,
 						blackHand: blackHand,
 						creatorColor: creatorColor,
-						joinerColor: joinerColor
+						joinerColor: joinerColor,
+						timeControl: {
+							white: DEFAULT_TIME_SECONDS,
+							black: DEFAULT_TIME_SECONDS,
+							lastMoveTime: null, // null until first white move
+							started: false      // Flag to track if clock has started
+						}
 					};
 
 					socket.gameId = gameId;
@@ -177,6 +185,46 @@ wss.on('connection', (socket) => {
 					const playerColor = data.player;
 					const handIndex = moveData.handIndex;
 
+					const currentTime = Date.now();
+					if (!gameMove.timeControl.started && playerColor === 'white') {
+						gameMove.timeControl.started = true;
+						gameMove.timeControl.lastMoveTime = currentTime;
+					}
+					// Process time for ongoing game
+					else if (gameMove.timeControl.started) {
+						const elapsedSeconds = (currentTime - gameMove.timeControl.lastMoveTime) / 1000;
+
+						// Deduct time from current player's clock
+						gameMove.timeControl[playerColor] -= elapsedSeconds;
+
+						// Check for timeout
+						if (gameMove.timeControl[playerColor] <= 0) {
+							gameMove.timeControl[playerColor] = 0;
+
+							// Determine winner
+							const winner = playerColor === 'white' ? 'black' : 'white';
+
+							// Notify both players of timeout
+							gameMove.players.forEach(client => {
+								if (client.readyState === WebSocket.OPEN) {
+									client.send(JSON.stringify({
+										type: 'time_out',
+										player: playerColor,
+										winner: winner
+									}));
+								}
+							});
+
+							return; // Stop processing move
+						}
+
+						// Add increment
+						gameMove.timeControl[playerColor] += INCREMENT_SECONDS;
+
+						// Update last move timestamp
+						gameMove.timeControl.lastMoveTime = currentTime;
+					}
+
 					if (playerColor === 'white') {
 						// Remove the card from hand
 						gameMove.whiteHand.splice(handIndex, 1);
@@ -212,6 +260,10 @@ wss.on('connection', (socket) => {
 								whiteHand: playerColor === 'white' ? gameMove.whiteHand : [], // Only send white hand to white player
 								blackDeck: gameMove.blackDeck.length,
 								blackHand: playerColor === 'black' ? gameMove.blackHand : [], // Only send black hand to black player
+								timeControl: {
+									white: gameMove.timeControl.white,
+									black: gameMove.timeControl.black
+								},
 								currentTurn: gameMove.currentTurn
 							}));
 						}
@@ -224,6 +276,10 @@ wss.on('connection', (socket) => {
 						whiteHand: gameMove.whiteHand,
 						blackDeck: gameMove.blackDeck.length,
 						blackHand: gameMove.blackHand,
+						timeControl: {
+							white: gameMove.timeControl.white,
+							black: gameMove.timeControl.black
+						},
 						currentTurn: gameMove.currentTurn
 					}));
 					break;
@@ -244,6 +300,49 @@ wss.on('connection', (socket) => {
 							message: 'Not your turn to pass'
 						}));
 						return;
+					}
+
+					// Time control handling
+					const passTime = Date.now();
+
+					// Start clock on white's first pass if not already started
+					if (!gamePass.timeControl.started && passingPlayer === 'white') {
+						gamePass.timeControl.started = true;
+						gamePass.timeControl.lastMoveTime = passTime;
+					}
+					// Process time for ongoing game
+					else if (gamePass.timeControl.started) {
+						const elapsedSeconds = (passTime - gamePass.timeControl.lastMoveTime) / 1000;
+
+						// Deduct time from current player's clock
+						gamePass.timeControl[passingPlayer] -= elapsedSeconds;
+
+						// Check for timeout
+						if (gamePass.timeControl[passingPlayer] <= 0) {
+							gamePass.timeControl[passingPlayer] = 0;
+
+							// Determine winner
+							const winner = passingPlayer === 'white' ? 'black' : 'white';
+
+							// Notify both players of timeout
+							gamePass.players.forEach(client => {
+								if (client.readyState === WebSocket.OPEN) {
+									client.send(JSON.stringify({
+										type: 'time_out',
+										player: passingPlayer,
+										winner: winner
+									}));
+								}
+							});
+
+							return; // Stop processing move
+						}
+
+						// Add increment
+						gamePass.timeControl[passingPlayer] += INCREMENT_SECONDS;
+
+						// Update last move timestamp
+						gamePass.timeControl.lastMoveTime = passTime;
 					}
 
 					// Clear the passing player's hand (discard all cards)
@@ -291,6 +390,10 @@ wss.on('connection', (socket) => {
 								whiteHand: playerColor === 'white' ? gamePass.whiteHand : [], // Only send white hand to white player
 								blackDeck: gamePass.blackDeck.length,
 								blackHand: playerColor === 'black' ? gamePass.blackHand : [], // Only send black hand to black player
+								timeControl: {
+									white: gamePass.timeControl.white,
+									black: gamePass.timeControl.black
+								},
 								currentTurn: gamePass.currentTurn
 							}));
 						}

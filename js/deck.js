@@ -2,12 +2,12 @@
 const MetachessDeck = (function () {
 	// Piece types and their default counts
 	const defaultDeckConfig = {
-		'p': 35,
-		'n': 9,
-		'b': 8,
-		'r': 7,
-		'q': 5,
-		'k': 4
+		'p': 50,
+		'n': 18,
+		'b': 18,
+		'r': 16,
+		'q': 12,
+		'k': 6
 	};
 
 	// Mapping piece types to Lichess file names

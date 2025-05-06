@@ -12,6 +12,12 @@ const MetachessGame = (function () {
 	let selectedSquare = null; // Added selectedSquare variable
 	let engineInitialized = false;
 	let playerColor = null; // 'white', 'black', or null (for local play)
+	let timeControl = {
+		white: 180,  // 3 minutes in seconds
+		black: 180,
+		started: false,
+		timerId: null
+	};
 
 	const pieceTypeMap = {
 		p: 'pawn',
@@ -57,6 +63,9 @@ const MetachessGame = (function () {
 
 		// Update hands (with active status)
 		updateHands();
+
+		// Start the clock
+		startClock();
 	}
 
 	function updateDecks() {
@@ -556,31 +565,7 @@ const MetachessGame = (function () {
 				currentTurn === playerColor ? 'Your turn' : 'Opponent\'s turn';
 		});
 
-		// Complete the pass_update handler
-		MetachessSocket.on('pass_update', (data) => {
-			console.log('Pass update received:', data);
-
-			// Update decks and hands
-			whiteDeck = Array(data.whiteDeck).fill('?');
-			blackDeck = Array(data.blackDeck).fill('?');
-
-			// Update hands based on player color
-			if (playerColor === 'white') {
-				whiteHand = data.whiteHand;
-			} else if (playerColor === 'black') {
-				blackHand = data.blackHand;
-			}
-
-			// Synchronize with server's game state
-			synchronizeGameState(data.currentTurn);
-			updateHands();
-
-			// Show pass message
-			const passingPlayer = data.passingPlayer === playerColor ? 'You' : 'Opponent';
-			document.getElementById('status-message').textContent = `${passingPlayer} passed the turn`;
-		});
-
-		// Add handler for opponent_move
+		// Update your opponent_move handler
 		MetachessSocket.on('opponent_move', (data) => {
 			console.log('Opponent move received:', data);
 
@@ -598,11 +583,82 @@ const MetachessGame = (function () {
 				blackHand = data.blackHand;
 			}
 
+			// Update time control if provided
+			if (data.timeControl) {
+				timeControl.white = data.timeControl.white;
+				timeControl.black = data.timeControl.black;
+
+				// Start clock if it hasn't been started yet
+				if (!timeControl.started) startClock();
+
+				updateClockDisplay();
+			}
+
 			// Synchronize with server's game state
 			synchronizeGameState(data.currentTurn);
 
 			// Status messages
 			document.getElementById('status-message').textContent = 'Opponent made a move';
+		});
+
+		// Update your pass_update handler
+		MetachessSocket.on('pass_update', (data) => {
+			console.log('Pass update received:', data);
+
+			// Update decks and hands
+			whiteDeck = Array(data.whiteDeck).fill('?');
+			blackDeck = Array(data.blackDeck).fill('?');
+
+			// Update hands based on player color
+			if (playerColor === 'white') {
+				whiteHand = data.whiteHand;
+			} else if (playerColor === 'black') {
+				blackHand = data.blackHand;
+			}
+
+			// Update time control if provided
+			if (data.timeControl) {
+				timeControl.white = data.timeControl.white;
+				timeControl.black = data.timeControl.black;
+
+				// Start clock if it hasn't been started yet
+				if (!timeControl.started) startClock();
+
+				updateClockDisplay();
+			}
+
+			// Synchronize with server's game state
+			synchronizeGameState(data.currentTurn);
+			updateHands();
+
+			// Show pass message
+			const passingPlayer = data.passingPlayer === playerColor ? 'You' : 'Opponent';
+			document.getElementById('status-message').textContent = `${passingPlayer} passed the turn`;
+		});
+
+		// Add handler for time_out messages
+		MetachessSocket.on('time_out', (data) => {
+			console.log('Time out:', data);
+
+			// Stop the clock
+			if (timeControl.timerId) {
+				clearInterval(timeControl.timerId);
+				timeControl.timerId = null;
+			}
+
+			// Update time display to show zero for player who timed out
+			timeControl[data.player] = 0;
+			updateClockDisplay();
+
+			// Show game over message
+			const timeoutPlayer = data.player === playerColor ? 'You' : 'Opponent';
+			const winnerText = data.winner === playerColor ? 'You win' : 'You lose';
+
+			document.getElementById('status-message').textContent =
+				`${timeoutPlayer} ran out of time. ${winnerText}!`;
+
+			// Disable controls
+			disableAllControls();
 		});
 
 		// Update the hand_update handler
@@ -752,6 +808,10 @@ const MetachessGame = (function () {
 		// Update our local turn state
 		currentTurn = serverTurn;
 
+		if (timeControl.started) {
+			updateClockDisplay();
+		}
+
 		// Synchronize the chess engine's internal state
 		const boardPosition = chess.fen().split(' ')[0];
 		const engineColor = currentTurn === 'white' ? 'w' : 'b';
@@ -809,6 +869,42 @@ const MetachessGame = (function () {
 				toSquare.classList.add('highlight-target');
 			}
 		}
+	}
+
+	// Add this function to format time as mm:ss
+	function formatTime(seconds) {
+		const minutes = Math.floor(seconds / 60);
+		const secs = Math.floor(seconds % 60);
+		return `${minutes}:${secs.toString().padStart(2, '0')}`;
+	}
+
+	// Add this function to update the clock display
+	function updateClockDisplay() {
+		document.getElementById('white-time').textContent = formatTime(timeControl.white);
+		document.getElementById('black-time').textContent = formatTime(timeControl.black);
+
+		// Highlight active player's clock
+		document.querySelector('.white-timer').classList.toggle('active', currentTurn === 'white');
+		document.querySelector('.black-timer').classList.toggle('active', currentTurn === 'black');
+
+		// Highlight low time (less than 30 seconds)
+		document.getElementById('white-time').classList.toggle('low-time', timeControl.white < 30);
+		document.getElementById('black-time').classList.toggle('low-time', timeControl.white < 30);
+	}
+
+	// Add this function to start the visual countdown timer
+	function startClock() {
+		if (timeControl.timerId) clearInterval(timeControl.timerId);
+
+		timeControl.started = true;
+		timeControl.timerId = setInterval(() => {
+			if (currentTurn === 'white') {
+				timeControl.white = Math.max(0, timeControl.white - 0.1);
+			} else {
+				timeControl.black = Math.max(0, timeControl.black - 0.1);
+			}
+			updateClockDisplay();
+		}, 100); // Update every 100ms for smoother display
 	}
 
 	return {
