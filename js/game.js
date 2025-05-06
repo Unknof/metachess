@@ -65,7 +65,7 @@ const MetachessGame = (function () {
 		updateHands();
 
 		// Start the clock
-		startClock();
+		//startClock();
 	}
 
 	function updateDecks() {
@@ -223,6 +223,10 @@ const MetachessGame = (function () {
 
 						// Highlight the move that was just made - now using variables from the wider scope
 						updateLastMoveHighlighting(move.from, move.to);
+
+						if (currentTurn === 'white' && !timeControl.started) {
+							startClock();
+						}
 
 						// NEW: If a king was captured, declare the capturing player as winner
 						if (isKingCapture) {
