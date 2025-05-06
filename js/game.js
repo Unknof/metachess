@@ -457,9 +457,55 @@ const MetachessGame = (function () {
 			return;
 		}
 
-		// Original singleplayer pass logic
-		// Simply switch turns
+		// Singleplayer pass logic that mimics server behavior
+		const passingPlayer = currentTurn;
+
+		// Time control logic (if implemented in singleplayer)
+		if (!timeControl.started && passingPlayer === 'white') {
+			timeControl.started = true;
+			startClock();
+		}
+
+		// Clear the passing player's hand (discard all cards)
+		if (passingPlayer === 'white') {
+			console.log(`White player passing - clearing hand with ${whiteHand.length} cards`);
+			whiteHand = [];
+
+			// Draw new cards for the player who passed
+			if (whiteDeck.length > 0) {
+				console.log(`White deck before drawing: ${whiteDeck.length} cards`);
+				const drawnCards = MetachessDeck.drawCards(whiteDeck, 5);
+				console.log(`White player drew ${drawnCards.length} cards:`, drawnCards);
+				whiteHand = drawnCards;
+				console.log(`White deck after drawing: ${whiteDeck.length} cards`);
+			} else {
+				console.log(`White deck is empty, no cards drawn`);
+			}
+		} else {
+			console.log(`Black player passing - clearing hand with ${blackHand.length} cards`);
+			blackHand = [];
+
+			// Draw new cards for the player who passed
+			if (blackDeck.length > 0) {
+				console.log(`Black deck before drawing: ${blackDeck.length} cards`);
+				const drawnCards = MetachessDeck.drawCards(blackDeck, 5);
+				console.log(`Black player drew ${drawnCards.length} cards:`, drawnCards);
+				blackHand = drawnCards;
+				console.log(`Black deck after drawing: ${blackDeck.length} cards`);
+			} else {
+				console.log(`Black deck is empty, no cards drawn`);
+			}
+		}
+
+		// Update UI elements
+		updateDecks();
+
+		// Switch turn (updates current player and UI elements)
 		switchTurn();
+
+		// Status message
+		document.getElementById('status-message').textContent =
+			`${passingPlayer.toUpperCase()} passed the turn`;
 	}
 
 	// Update your initMultiplayer function
