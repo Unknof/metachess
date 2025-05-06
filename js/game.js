@@ -573,6 +573,7 @@ const MetachessGame = (function () {
 
 			// Synchronize with server's game state
 			synchronizeGameState(data.currentTurn);
+			updateHands();
 
 			// Show pass message
 			const passingPlayer = data.passingPlayer === playerColor ? 'You' : 'Opponent';
