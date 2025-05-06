@@ -45,7 +45,7 @@ document.addEventListener('DOMContentLoaded', function () {
 		const freshBtn = document.getElementById('multiplayer-btn');
 		freshBtn.addEventListener('click', function (e) {
 			e.preventDefault();
-			console.log('Multiplayer button clicked - forcing display');
+			//console.log('Multiplayer button clicked - forcing display');
 
 			// Force display style directly
 			const modal = document.getElementById('multiplayer-modal');
@@ -53,7 +53,7 @@ document.addEventListener('DOMContentLoaded', function () {
 			modal.style.opacity = '1';
 			modal.style.visibility = 'visible';
 
-			console.log('Modal style set to:', modal.style.display);
+			//console.log('Modal style set to:', modal.style.display);
 		});
 	}
 
@@ -67,7 +67,7 @@ document.addEventListener('DOMContentLoaded', function () {
 		const freshCreateBtn = document.getElementById('create-game-btn');
 		freshCreateBtn.addEventListener('click', function (e) {
 			e.preventDefault();
-			console.log('Create game button clicked - initiating multiplayer setup');
+			//console.log('Create game button clicked - initiating multiplayer setup');
 
 			// Hide the multiplayer modal
 			document.getElementById('multiplayer-modal').style.display = 'none';
@@ -139,15 +139,13 @@ document.addEventListener('DOMContentLoaded', function () {
 			event.target.id === 'cancel-waiting' ||
 			event.target.closest('#cancel-multiplayer') ||
 			event.target.closest('#cancel-waiting')) {
-			console.log('Click was on or inside a cancel button');
+
 		}
 
 		// Check if any modals are currently visible
 		const multiplayerModalStyle = window.getComputedStyle(document.getElementById('multiplayer-modal'));
 		const waitingModalStyle = window.getComputedStyle(document.getElementById('waiting-modal'));
 
-		console.log('Multiplayer modal computed display:', multiplayerModalStyle.display);
-		console.log('Waiting modal computed display:', waitingModalStyle.display);
 	});
 
 	console.log('Checking for CSS conflicts');
@@ -194,11 +192,6 @@ document.addEventListener('DOMContentLoaded', function () {
 	function checkModalState() {
 		const multiplayerModal = document.getElementById('multiplayer-modal');
 		const waitingModal = document.getElementById('waiting-modal');
-
-		console.log('Multiplayer modal display:', multiplayerModal.style.display);
-		console.log('Waiting modal display:', waitingModal.style.display);
-		console.log('Multiplayer modal computed style:', window.getComputedStyle(multiplayerModal).display);
-		console.log('Waiting modal computed style:', window.getComputedStyle(waitingModal).display);
 	}
 
 	// Call this periodically for debugging

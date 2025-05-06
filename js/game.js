@@ -28,6 +28,12 @@ const MetachessGame = (function () {
 		k: 'king'
 	};
 
+	const soundEffects = {
+		move: new Audio('sounds/move.mp3'),
+		capture: new Audio('sounds/capture.mp3')
+	};
+
+
 	function init(chessInstance, boardInstance) {
 		chess = chessInstance;
 		board = boardInstance;
@@ -197,6 +203,7 @@ const MetachessGame = (function () {
 					let to = null;
 					let promotion = undefined;
 					let isKingCapture = false;
+					let isCapture = false;
 
 					if (moveStr && moveStr.length >= 4) {
 						from = moveStr.substring(0, 2);
@@ -206,6 +213,8 @@ const MetachessGame = (function () {
 						// NEW: Check if the target square has a king
 						const targetSquare = chess.get(to);
 						isKingCapture = targetSquare && targetSquare.type === 'k';
+
+						const isCapture = targetSquare !== null;
 
 						// Try to make the move in chess.js format
 						move = chess.move({
@@ -220,6 +229,10 @@ const MetachessGame = (function () {
 					if (move) {
 						// Update board display
 						board.position(chess.fen());
+
+						if (move) {
+							playSound(isCapture ? 'capture' : 'move');
+						}
 
 						// Highlight the move that was just made - now using variables from the wider scope
 						updateLastMoveHighlighting(move.from, move.to);
@@ -728,6 +741,9 @@ const MetachessGame = (function () {
 		const targetSquare = chess.get(to);
 		const isKingCapture = targetSquare && targetSquare.type === 'k';
 
+
+		const isCapture = targetSquare !== null;
+
 		// Make the move on the chess board
 		const move = chess.move({
 			from: from,
@@ -738,6 +754,8 @@ const MetachessGame = (function () {
 		if (move) {
 			// Update board display
 			board.position(chess.fen());
+
+			playSound(isCapture ? 'capture' : 'move');
 
 			// Highlight last move
 			updateLastMoveHighlighting(move.from, move.to);
@@ -909,6 +927,18 @@ const MetachessGame = (function () {
 			}
 			updateClockDisplay();
 		}, 100); // Update every 100ms for smoother display
+	}
+
+	function playSound(type) {
+		try {
+			// Reset sound to beginning (in case it's already playing)
+			soundEffects[type].currentTime = 0;
+			soundEffects[type].play().catch(error => {
+				console.warn(`Failed to play ${type} sound:`, error);
+			});
+		} catch (error) {
+			console.warn(`Error playing ${type} sound:`, error);
+		}
 	}
 
 	return {
