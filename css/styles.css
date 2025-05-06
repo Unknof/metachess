@@ -635,13 +635,39 @@ button:disabled {
 
 	.piece-card {
 		width: 19%;
-		/* Make each card take up 1/5 of container width minus gaps */
+		/* Maintain width for 5 cards */
 		height: 50px;
 		/* Reduced from 80px - about 40% smaller */
-		min-width: unset;
+		margin: 0 1px;
 		padding: 2px;
-		margin: 0;
 		flex-shrink: 0;
+		transform: none;
+	}
+
+	.card-content {
+		transform: none;
+		/* Remove the 0.9 scale */
+		height: 100%;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.piece-card .piece-image {
+		height: 80%;
+		/* Use 80% of card height */
+		width: auto;
+		max-height: 40px;
+		/* Maximum size */
+		margin: 0;
+		object-fit: contain;
+		/* Ensure the image maintains its proportions */
+	}
+
+	.piece-card .piece-name {
+		display: none;
+		/* Hide the piece name text completely */
 	}
 
 	.card-content {

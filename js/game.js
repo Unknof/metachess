@@ -93,6 +93,12 @@ const MetachessGame = (function () {
 		document.getElementById('pass-turn').addEventListener('click', () => {
 			passTurn();
 		});
+
+		// If player color is somehow set (like in a reconnection scenario),
+		// make sure the board orientation matches
+		if (playerColor === 'black' && board) {
+			board.orientation('black');
+		}
 	}
 
 	function updateDecks() {
@@ -802,6 +808,11 @@ const MetachessGame = (function () {
 		// Initialize game state for specific color
 		currentTurn = 'white'; // Game always starts with white
 		playerColor = color;
+
+		// Flip the board if player is black
+		if (board && color === 'black') {
+			board.orientation('black');
+		}
 
 		// Determine which hand is controlled by the player
 		playerHand = playerColor === 'white' ? whiteHand : blackHand;

@@ -1,7 +1,7 @@
 const MetachessBoard = (function () {
 	let chess = null;
 
-	function init(boardId = 'chessboard') {
+	function init(boardId = 'chessboard', orientation = 'white') {
 		chess = new Chess();
 
 		// Initialize chessboard with Lichess pieces
@@ -9,6 +9,7 @@ const MetachessBoard = (function () {
 			position: 'start',
 			showNotation: true,
 			draggable: false,
+			orientation: orientation, // Set the board orientation
 			pieceTheme: 'https://raw.githubusercontent.com/lichess-org/lila/master/public/piece/cburnett/{piece}.svg'
 		};
 
