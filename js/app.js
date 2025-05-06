@@ -150,50 +150,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
 	console.log('Checking for CSS conflicts');
 
-	// Add a test button outside any modal to see if normal buttons work
-	const testButton = document.createElement('button');
-	testButton.textContent = 'Test Button';
-	testButton.style.position = 'fixed';
-	testButton.style.top = '10px';
-	testButton.style.right = '10px';
-	testButton.style.zIndex = '2000';
-
-	testButton.addEventListener('click', function () {
-		console.log('Test button clicked successfully');
-		alert('Test button works!');
-	});
-
-	document.body.appendChild(testButton);
-
-	// Add a debug button to show connection info
-	const debugBtn = document.createElement('button');
-	debugBtn.textContent = 'Debug Info';
-	debugBtn.style.position = 'fixed';
-	debugBtn.style.bottom = '10px';
-	debugBtn.style.right = '10px';
-	debugBtn.style.zIndex = '9999';
-
-	debugBtn.addEventListener('click', function () {
-		const socketInfo = MetachessSocket.getConnectionInfo();
-		const debugInfo = `
-			Connected: ${socketInfo.connected}
-			Game ID: ${socketInfo.gameId || 'None'}
-			Player Color: ${socketInfo.playerColor || 'None'}
-			
-			Server URL: ${location.origin}
-			Current URL: ${location.href}
-		`;
-		alert(debugInfo);
-	});
-
-	document.body.appendChild(debugBtn);
-
 	// Debug function to check modal state
 	function checkModalState() {
 		const multiplayerModal = document.getElementById('multiplayer-modal');
 		const waitingModal = document.getElementById('waiting-modal');
 	}
-
-	// Call this periodically for debugging
-	setInterval(checkModalState, 5000);
 });

@@ -611,6 +611,80 @@ button:disabled {
 	.collapsible-content.expanded {
 		display: block;
 	}
+
+	.card-container {
+		display: flex;
+		justify-content: space-between;
+		flex-wrap: nowrap;
+		gap: 2px;
+		padding: 5px 2px;
+		margin: 0;
+		overflow-x: visible;
+		/* Prevent scrolling */
+	}
+
+	.piece-card {
+		width: 18%;
+		/* Make each card take up 1/5 of container width minus gaps */
+		height: 100px;
+		min-width: unset;
+		padding: 3px;
+		margin: 0;
+	}
+
+	.card-content {
+		transform: scale(0.9);
+	}
+
+	/* Hide player names and other text to save space */
+	.player-name,
+	.deck-count {
+		font-size: 12px;
+	}
+
+	/* Make the board fit better */
+	#chessboard {
+		width: 100%;
+		max-width: 380px;
+		height: auto;
+		aspect-ratio: 1/1;
+	}
+
+	/* Make the pass buttons smaller */
+	button {
+		padding: 8px 10px;
+		font-size: 14px;
+	}
+
+	/* Hide time labels, just show time */
+	.player-label {
+		display: none;
+	}
+
+	/* Minimize the header area */
+	header {
+		padding: 5px;
+		margin-bottom: 5px;
+	}
+
+	/* Adjust the container layout */
+	.container {
+		gap: 5px;
+		padding: 5px;
+	}
+
+	/* Hide multiplayer button on mobile if not needed */
+	.game-controls {
+		display: none;
+	}
+
+	/* Alternative: make it smaller */
+	/*
+	.game-controls button {
+		padding: 5px;
+		font-size: 12px;
+	}
+	*/
 }
 
 /* Small phones */

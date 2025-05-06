@@ -74,7 +74,7 @@ const MetachessGame = (function () {
 		// Initialize engine
 		engineInitialized = MetachessEngine.init();
 		if (!engineInitialized) {
-			document.getElementById('status-message').textContent = "Warning: Stockfish engine not available";
+			updateStatusMessage("Warning: Stockfish engine not available");
 		}
 
 		// Enable controls for current player
@@ -160,13 +160,13 @@ const MetachessGame = (function () {
 
 		// Update status message
 		const playerName = currentTurn.toUpperCase();
-		document.getElementById('status-message').textContent = `${playerName}'s turn`;
+		//updateStatusMessage(`${playerName}'s turn`);
 	}
 
 	function selectCard(pieceType, index) {
 		// If this is a multiplayer game, verify it's the player's turn
 		if (playerColor && currentTurn !== playerColor) {
-			document.getElementById('status-message').textContent = "Not your turn";
+			updateStatusMessage("Not your turn");
 			return;
 		}
 
@@ -179,7 +179,7 @@ const MetachessGame = (function () {
 		if ((currentTurn === 'white' && isBlackPiece) ||
 			(currentTurn === 'black' && isWhitePiece)) {
 			console.error("Wrong player trying to move!");
-			document.getElementById('status-message').textContent = `It's ${currentTurn}'s turn!`;
+			updateStatusMessage(`It's ${currentTurn}'s turn!`);
 			return;
 		}
 
@@ -198,12 +198,12 @@ const MetachessGame = (function () {
 
 		// Ask Stockfish for the best move with this piece type
 		if (engineInitialized) {
-			document.getElementById('status-message').textContent = "Thinking...";
+			updateStatusMessage("Thinking...");
 
 			const enginePieceType = pieceTypeMap[pieceType.toLowerCase()];
 			if (!enginePieceType) {
 				console.error("Invalid piece type:", pieceType);
-				document.getElementById('status-message').textContent = "Invalid piece type!";
+				updateStatusMessage("Invalid piece type!");
 				return;
 			}
 
@@ -259,7 +259,7 @@ const MetachessGame = (function () {
 						// NEW: If a king was captured, declare the capturing player as winner
 						if (isKingCapture) {
 							const winner = currentTurn === 'white' ? 'WHITE' : 'BLACK';
-							document.getElementById('status-message').textContent = `${winner} captured the king and WINS!`;
+							updateStatusMessage(`${winner} captured the king and WINS!`);
 							gameOver = true;
 							disableAllControls();
 						} else {
@@ -285,19 +285,19 @@ const MetachessGame = (function () {
 						}
 					} else {
 						console.error("Move was not legal:", moveStr);
-						document.getElementById('status-message').textContent = `No valid ${pieceType} move found`;
+						updateStatusMessage(`No valid ${pieceType} move found`);
 
 						// Don't remove the card since the move failed
 					}
 				})
 				.catch(error => {
 					console.error("Engine error:", error);
-					document.getElementById('status-message').textContent = `No valid ${pieceType} moves available`;
+					updateStatusMessage(`No valid ${pieceType} moves available`);
 
 					// Don't remove the card since there was an error
 				});
 		} else {
-			document.getElementById('status-message').textContent = "Stockfish not available. Choose another card";
+			updateStatusMessage("Stockfish not available. Choose another card");
 		}
 	}
 
@@ -364,12 +364,12 @@ const MetachessGame = (function () {
 		// Update game status to show active game
 		if (playerColor) {
 			if (currentTurn === playerColor) {
-				document.getElementById('game-status').textContent = 'Your turn';
+				updateStatusMessage('Your turn');
 			} else {
-				document.getElementById('game-status').textContent = 'Opponent\'s turn';
+				updateStatusMessage('Opponent\'s turn');
 			}
 		} else {
-			document.getElementById('game-status').textContent = `${currentTurn.toUpperCase()}'s turn`;
+			updateStatusMessage(`${currentTurn.toUpperCase()}'s turn`);
 		}
 	}
 
@@ -377,17 +377,17 @@ const MetachessGame = (function () {
 		// Check standard chess conditions
 		if (chess.in_checkmate()) {
 			const winner = chess.turn() === 'w' ? 'BLACK' : 'WHITE';
-			document.getElementById('status-message').textContent = `CHECKMATE! ${winner} wins!`;
+			updateStatusMessage(`CHECKMATE! ${winner} wins!`);
 			gameOver = true;
 		} else if (chess.in_stalemate()) {
-			document.getElementById('status-message').textContent = 'STALEMATE! Game is a draw.';
+			updateStatusMessage('STALEMATE! Game is a draw.');
 			gameOver = true;
 		} else if (chess.in_draw()) {
-			document.getElementById('status-message').textContent = 'DRAW! Game is a draw.';
+			updateStatusMessage('DRAW! Game is a draw.');
 			gameOver = true;
 		} else if (chess.in_check()) {
 			const inCheck = chess.turn() === 'w' ? 'WHITE' : 'BLACK';
-			document.getElementById('status-message').textContent = `${inCheck} is in CHECK!`;
+			updateStatusMessage(`${inCheck} is in CHECK!`);
 		}
 
 		// NEW: Check for no playable cards win condition
@@ -396,10 +396,10 @@ const MetachessGame = (function () {
 			const blackHasCards = hasPlayableCards('black');
 
 			if (!whiteHasCards) {
-				document.getElementById('status-message').textContent = 'WHITE has no playable cards! BLACK wins!';
+				updateStatusMessage('WHITE has no playable cards! BLACK wins!');
 				gameOver = true;
 			} else if (!blackHasCards) {
-				document.getElementById('status-message').textContent = 'BLACK has no playable cards! WHITE wins!';
+				updateStatusMessage('BLACK has no playable cards! WHITE wins!');
 				gameOver = true;
 			}
 		}
@@ -433,7 +433,7 @@ const MetachessGame = (function () {
 	// Fix the handlePassInMultiplayer function
 	function handlePassInMultiplayer() {
 		if (!playerColor || currentTurn !== playerColor) {
-			document.getElementById('status-message').textContent = "Not your turn";
+			updateStatusMessage("Not your turn");
 			return;
 		}
 
@@ -455,7 +455,7 @@ const MetachessGame = (function () {
 
 		// Disable controls until server confirms the pass
 		disableAllControls();
-		document.getElementById('status-message').textContent = "Passing turn...";
+		updateStatusMessage("Passing turn...");
 
 		// Don't change any state here - wait for the server's pass_update message
 	}
@@ -519,8 +519,9 @@ const MetachessGame = (function () {
 		switchTurn();
 
 		// Status message
-		document.getElementById('status-message').textContent =
-			`${passingPlayer.toUpperCase()} passed the turn`;
+		updateStatusMessage(
+			`${passingPlayer.toUpperCase()} passed the turn`
+		);
 	}
 
 	// Update your initMultiplayer function
@@ -553,7 +554,7 @@ const MetachessGame = (function () {
 			})
 			.catch(error => {
 				console.error('Failed to initialize multiplayer:', error);
-				document.getElementById('status-message').textContent = 'Multiplayer unavailable. Playing in single-player mode.';
+				updateStatusMessage('Multiplayer unavailable. Playing in single-player mode.');
 				return false; // Return failure
 			});
 	}
@@ -576,7 +577,7 @@ const MetachessGame = (function () {
 			updateHands();
 
 			// Update UI to show waiting for opponent
-			document.getElementById('game-status').textContent = 'Waiting for opponent to join...';
+			updateStatusMessage('Waiting for opponent to join...');
 			document.getElementById('game-link').value = `${window.location.href}?game=${data.gameId}`;
 			document.getElementById('waiting-modal').style.display = 'flex';
 
@@ -598,8 +599,9 @@ const MetachessGame = (function () {
 			}
 
 			// Show notification
-			document.getElementById('status-message').textContent =
-				`Opponent joined! You are playing as ${playerColor.toUpperCase()}`;
+			updateStatusMessage(
+				`Opponent joined! You are playing as ${playerColor.toUpperCase()}`
+			);
 
 			// Initialize with correct color - this is the key fix!
 			initializeWithColor(playerColor);
@@ -635,12 +637,14 @@ const MetachessGame = (function () {
 			initializeWithColor(playerColor);
 
 			// Show notification
-			document.getElementById('status-message').textContent =
-				`You joined the game! You are playing as ${playerColor.toUpperCase()}`;
+			updateStatusMessage(
+				`You joined the game! You are playing as ${playerColor.toUpperCase()}`
+			);
 
 			// Update game status
-			document.getElementById('game-status').textContent =
-				currentTurn === playerColor ? 'Your turn' : 'Opponent\'s turn';
+			updateStatusMessage(
+				currentTurn === playerColor ? 'Your turn' : 'Opponent\'s turn'
+			);
 		});
 
 		// Update your opponent_move handler
@@ -676,7 +680,7 @@ const MetachessGame = (function () {
 			synchronizeGameState(data.currentTurn);
 
 			// Status messages
-			document.getElementById('status-message').textContent = 'Opponent made a move';
+			updateStatusMessage('Opponent made a move');
 		});
 
 		// Update your pass_update handler
@@ -711,7 +715,7 @@ const MetachessGame = (function () {
 
 			// Show pass message
 			const passingPlayer = data.passingPlayer === playerColor ? 'You' : 'Opponent';
-			document.getElementById('status-message').textContent = `${passingPlayer} passed the turn`;
+			updateStatusMessage(`${passingPlayer} passed the turn`);
 		});
 
 		// Add handler for time_out messages
@@ -732,8 +736,9 @@ const MetachessGame = (function () {
 			const timeoutPlayer = data.player === playerColor ? 'You' : 'Opponent';
 			const winnerText = data.winner === playerColor ? 'You win' : 'You lose';
 
-			document.getElementById('status-message').textContent =
-				`${timeoutPlayer} ran out of time. ${winnerText}!`;
+			updateStatusMessage(
+				`${timeoutPlayer} ran out of time. ${winnerText}!`
+			);
 
 			// Disable controls
 			disableAllControls();
@@ -782,9 +787,9 @@ const MetachessGame = (function () {
 
 		// Update game status based on whose turn it is
 		if (currentTurn === playerColor) {
-			document.getElementById('game-status').textContent = 'Your turn';
+			updateStatusMessage('Your turn');
 		} else {
-			document.getElementById('game-status').textContent = 'Opponent\'s turn';
+			updateStatusMessage('Opponent\'s turn');
 		}
 
 		// Update controls based on whose turn it is
@@ -824,7 +829,7 @@ const MetachessGame = (function () {
 			// NEW: If a king was captured, declare the capturing player as winner
 			if (isKingCapture) {
 				const winner = currentTurn === 'white' ? 'WHITE' : 'BLACK';
-				document.getElementById('status-message').textContent = `${winner} captured the king and WINS!`;
+				updateStatusMessage(`${winner} captured the king and WINS!`);
 				gameOver = true;
 				disableAllControls();
 
@@ -883,7 +888,7 @@ const MetachessGame = (function () {
 
 			// If this is a multiplayer game, check if it's your turn
 			if (playerColor && currentTurn !== playerColor) {
-				document.getElementById('status-message').textContent = "Not your turn";
+				updateStatusMessage("Not your turn");
 				return;
 			}
 
@@ -925,10 +930,11 @@ const MetachessGame = (function () {
 
 		// Update game status
 		if (playerColor) {
-			document.getElementById('game-status').textContent =
-				currentTurn === playerColor ? 'Your turn' : 'Opponent\'s turn';
+			updateStatusMessage(
+				currentTurn === playerColor ? 'Your turn' : 'Opponent\'s turn'
+			);
 		} else {
-			document.getElementById('game-status').textContent = `${currentTurn.toUpperCase()}'s turn`;
+			updateStatusMessage(`${currentTurn.toUpperCase()}'s turn`);
 		}
 	}
 
@@ -1004,6 +1010,16 @@ const MetachessGame = (function () {
 			});
 		} catch (error) {
 			console.warn(`Error playing ${type} sound:`, error);
+		}
+	}
+
+	// Example modification - make status updates silent
+	function updateStatusMessage(message) {
+		// Keep the DOM update for game logic but don't show it
+		const statusElement = document.getElementById('status-message');
+		if (statusElement) {
+			statusElement.textContent = message;
+			// Don't change visibility
 		}
 	}
 
