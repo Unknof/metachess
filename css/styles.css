@@ -517,6 +517,37 @@ button:disabled {
 	border-radius: 4px;
 }
 
+/* Player timer styles */
+.player-timer {
+	font-family: 'Courier New', monospace;
+	font-size: 1.5rem;
+	font-weight: bold;
+	background-color: #333;
+	color: #fff;
+	padding: 4px 8px;
+	border-radius: 4px;
+	margin-left: 10px;
+}
+
+.timer-low {
+	background-color: #f44336;
+	animation: timer-pulse 1s infinite;
+}
+
+@keyframes timer-pulse {
+	0% {
+		opacity: 1;
+	}
+
+	50% {
+		opacity: 0.6;
+	}
+
+	100% {
+		opacity: 1;
+	}
+}
+
 /* Responsive design */
 @media (max-width: 768px) {
 	body {

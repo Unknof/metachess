@@ -42,8 +42,24 @@ const MetachessSocket = (function () {
 					const data = JSON.parse(event.data);
 					console.log('Message received:', data);
 
-					if (callbacks[data.type]) {
-						callbacks[data.type](data);
+					switch (data.type) {
+						case 'time_out':
+							// Call the callback if registered
+							if (callbacks['time_out']) {
+								callbacks['time_out'](data);
+							}
+							break;
+
+						case 'move_made':
+							// Pass the timeControl to your callback
+							// Rest of your code...
+							break;
+
+						default:
+							if (callbacks[data.type]) {
+								callbacks[data.type](data);
+							}
+							break;
 					}
 				};
 

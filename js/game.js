@@ -13,6 +13,12 @@ const MetachessGame = (function () {
 	let engineInitialized = false;
 	let playerColor = null; // 'white', 'black', or null (for local play)
 
+	// Add timer variables
+	let whiteTime = 180; // 3 minutes in seconds
+	let blackTime = 180;
+	let timerInterval = null;
+	let activeTimer = null;
+
 	const pieceTypeMap = {
 		p: 'pawn',
 		n: 'knight',
@@ -21,6 +27,71 @@ const MetachessGame = (function () {
 		q: 'queen',
 		k: 'king'
 	};
+
+	// Function to format time
+	function formatTime(seconds) {
+		const minutes = Math.floor(seconds / 60);
+		const secs = Math.floor(seconds % 60);
+		return `${minutes}:${secs < 10 ? '0' + secs : secs}`;
+	}
+
+	// Function to update timer displays
+	function updateTimerDisplay() {
+		document.getElementById('white-timer').textContent = formatTime(whiteTime);
+		document.getElementById('black-timer').textContent = formatTime(blackTime);
+
+		// Add visual cue for low time (less than 30 seconds)
+		if (whiteTime < 30) {
+			document.getElementById('white-timer').classList.add('timer-low');
+		} else {
+			document.getElementById('white-timer').classList.remove('timer-low');
+		}
+
+		if (blackTime < 30) {
+			document.getElementById('black-timer').classList.add('timer-low');
+		} else {
+			document.getElementById('black-timer').classList.remove('timer-low');
+		}
+	}
+
+	// Function to start the timer
+	function startTimer() {
+		if (timerInterval) {
+			clearInterval(timerInterval);
+		}
+
+		activeTimer = currentTurn;
+
+		timerInterval = setInterval(() => {
+			if (activeTimer === 'white') {
+				whiteTime -= 0.1; // Decrease by 0.1 second for smoother display
+				if (whiteTime <= 0) {
+					whiteTime = 0;
+					clearInterval(timerInterval);
+					// Only display flagging locally - server will confirm
+					document.getElementById('status-message').textContent = 'WHITE out of time!';
+				}
+			} else {
+				blackTime -= 0.1;
+				if (blackTime <= 0) {
+					blackTime = 0;
+					clearInterval(timerInterval);
+					// Only display flagging locally - server will confirm
+					document.getElementById('status-message').textContent = 'BLACK out of time!';
+				}
+			}
+
+			updateTimerDisplay();
+		}, 100); // Update every 100ms for smoother countdown
+	}
+
+	// Function to stop the timer
+	function stopTimer() {
+		if (timerInterval) {
+			clearInterval(timerInterval);
+			timerInterval = null;
+		}
+	}
 
 	function init(chessInstance, boardInstance) {
 		chess = chessInstance;
@@ -57,6 +128,16 @@ const MetachessGame = (function () {
 
 		// Update hands (with active status)
 		updateHands();
+
+		// Initialize timers
+		whiteTime = 180; // 3 minutes
+		blackTime = 180;
+		updateTimerDisplay();
+
+		// Start timer if it's a multiplayer game
+		if (playerColor) {
+			startTimer();
+		}
 	}
 
 	function updateDecks() {
@@ -314,6 +395,11 @@ const MetachessGame = (function () {
 		if (engineInitialized && window.engine) {
 			window.engine.postMessage('position fen ' + chess.fen());
 			window.engine.postMessage('ucinewgame'); // Reset the engine completely
+		}
+
+		// Restart timer for new player
+		if (playerColor) {
+			activeTimer = currentTurn;
 		}
 
 		// Update UI
@@ -622,6 +708,37 @@ const MetachessGame = (function () {
 			// Synchronize with server's game state
 			synchronizeGameState(data.currentTurn);
 		});
+
+		// Add time control update handler
+		MetachessSocket.on('move_made', (data) => {
+			// Update timers from server data
+			if (data.timeControl) {
+				whiteTime = data.timeControl.white;
+				blackTime = data.timeControl.black;
+				updateTimerDisplay();
+
+				// If it's our turn, start the timer
+				if (currentTurn === playerColor) {
+					startTimer();
+				}
+			}
+
+			// Rest of your move_made handler...
+		});
+
+		// Add timeout handler
+		MetachessSocket.on('time_out', (data) => {
+			stopTimer();
+			gameOver = true;
+
+			const loser = data.player.toUpperCase();
+			const winner = (data.player === 'white' ? 'BLACK' : 'WHITE');
+
+			document.getElementById('status-message').textContent =
+				`${loser} ran out of time! ${winner} wins!`;
+
+			disableAllControls();
+		});
 	}
 
 	// Update your showMultiplayerOptions function
@@ -814,6 +931,8 @@ const MetachessGame = (function () {
 		init,
 		passTurn,
 		initMultiplayer,
+		startTimer,
+		stopTimer,
 		// New methods for testing
 		getCurrentTurn() {
 			return currentTurn;

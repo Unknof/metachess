@@ -22,6 +22,10 @@ const server = http.createServer(app);
 // Create WebSocket server using the HTTP server
 const wss = new WebSocket.Server({ server });
 
+// Add time control constants
+const DEFAULT_TIME_SECONDS = 3 * 60; // 3 minutes
+const INCREMENT_SECONDS = 1; // 1 second increment
+
 // Helper functions for deck and card management
 
 function createDeck(color) {
@@ -66,8 +70,126 @@ function drawCards(deck, count = 1) {
 	return drawn;
 }
 
+// Modify your game object structure to include time control
+function createNewGame(gameId, playerColor) {
+	return {
+		gameId: gameId,
+		players: {
+			white: playerColor === 'white' ? true : false,
+			black: playerColor === 'black' ? true : false
+		},
+		// Add time control properties
+		timeControl: {
+			white: DEFAULT_TIME_SECONDS,
+			black: DEFAULT_TIME_SECONDS,
+			lastMoveTime: Date.now() // Track when the last move was made
+		},
+		currentTurn: 'white',
+		// Other existing properties...
+	};
+}
+
 // Games storage
 const games = {};
+
+// Broadcast helper function
+function broadcastToGame(gameId, message) {
+	const game = games[gameId];
+	if (!game) return;
+
+	game.players.forEach(client => {
+		if (client.readyState === WebSocket.OPEN) {
+			client.send(JSON.stringify(message));
+		}
+	});
+}
+
+// In your move handler function
+function handleMove(socket, data) {
+	const game = games[data.gameId];
+	if (!game) return;
+
+	// Calculate time elapsed and update clock
+	const currentTime = Date.now();
+	const elapsedSeconds = (currentTime - game.timeControl.lastMoveTime) / 1000;
+
+	// Update current player's time
+	const currentPlayer = game.currentTurn;
+	game.timeControl[currentPlayer] -= elapsedSeconds;
+
+	// Check for time out
+	if (game.timeControl[currentPlayer] <= 0) {
+		// Player lost on time
+		game.timeControl[currentPlayer] = 0; // Don't go negative
+
+		// Notify both players of time out
+		broadcastToGame(game.gameId, {
+			type: 'time_out',
+			player: currentPlayer,
+			winner: currentPlayer === 'white' ? 'black' : 'white'
+		});
+
+		return; // Stop processing the move
+	}
+
+	// Add increment after move is made
+	game.timeControl[currentPlayer] += INCREMENT_SECONDS;
+
+	// Update last move timestamp
+	game.timeControl.lastMoveTime = currentTime;
+
+	// Switch turns
+	game.currentTurn = game.currentTurn === 'white' ? 'black' : 'white';
+
+	// Rest of your move handling code...
+
+	// Include time information in move broadcasts
+	broadcastToGame(game.gameId, {
+		type: 'move_made',
+		// Other existing data...
+		timeControl: game.timeControl
+	});
+}
+
+// In your pass turn handler
+function handlePass(socket, data) {
+	const game = games[data.gameId];
+	if (!game) return;
+
+	// Calculate time elapsed and update clock
+	const currentTime = Date.now();
+	const elapsedSeconds = (currentTime - game.timeControl.lastMoveTime) / 1000;
+
+	// Update current player's time
+	const currentPlayer = game.currentTurn;
+	game.timeControl[currentPlayer] -= elapsedSeconds;
+
+	// Check for time out
+	if (game.timeControl[currentPlayer] <= 0) {
+		// Player lost on time
+		game.timeControl[currentPlayer] = 0;
+
+		broadcastToGame(game.gameId, {
+			type: 'time_out',
+			player: currentPlayer,
+			winner: currentPlayer === 'white' ? 'black' : 'white'
+		});
+
+		return;
+	}
+
+	// Add increment after pass
+	game.timeControl[currentPlayer] += INCREMENT_SECONDS;
+
+	// Update last move timestamp
+	game.timeControl.lastMoveTime = currentTime;
+
+	// Switch turns
+	game.currentTurn = game.currentTurn === 'white' ? 'black' : 'white';
+
+	// Include time information in pass broadcasts
+	// rest of your pass handling code...
+}
 
 // WebSocket connection handling
 wss.on('connection', (socket) => {
@@ -108,7 +230,12 @@ wss.on('connection', (socket) => {
 						blackDeck: blackDeck,
 						blackHand: blackHand,
 						creatorColor: creatorColor,
-						joinerColor: joinerColor
+						joinerColor: joinerColor,
+						timeControl: {
+							white: DEFAULT_TIME_SECONDS,
+							black: DEFAULT_TIME_SECONDS,
+							lastMoveTime: Date.now()
+						}
 					};
 
 					socket.gameId = gameId;
@@ -169,63 +296,7 @@ wss.on('connection', (socket) => {
 					break;
 
 				case 'move':
-					const gameMove = games[data.gameId];
-					if (!gameMove) return;
-
-					// Update hands based on the move
-					const moveData = data.move;
-					const playerColor = data.player;
-					const handIndex = moveData.handIndex;
-
-					if (playerColor === 'white') {
-						// Remove the card from hand
-						gameMove.whiteHand.splice(handIndex, 1);
-
-						// Draw a new card if deck isn't empty
-						if (gameMove.whiteDeck.length > 0 && gameMove.whiteHand.length < 5) {
-							gameMove.whiteHand.push(drawCards(gameMove.whiteDeck, 1)[0]);
-						}
-					} else {
-						// Remove the card from hand
-						gameMove.blackHand.splice(handIndex, 1);
-
-						// Draw a new card if deck isn't empty
-						if (gameMove.blackDeck.length > 0 && gameMove.blackHand.length < 5) {
-							gameMove.blackHand.push(drawCards(gameMove.blackDeck, 1)[0]);
-						}
-					}
-
-					// Store move
-					gameMove.moves.push(data.move);
-					gameMove.currentTurn = data.player === 'white' ? 'black' : 'white';
-
-					// Broadcast move to the other player
-					gameMove.players.forEach(client => {
-						if (client !== socket && client.readyState === WebSocket.OPEN) {
-							// Determine which cards to send based on player color
-							const playerColor = client.playerColor;
-
-							client.send(JSON.stringify({
-								type: 'opponent_move',
-								move: data.move,
-								whiteDeck: gameMove.whiteDeck.length,
-								whiteHand: playerColor === 'white' ? gameMove.whiteHand : [], // Only send white hand to white player
-								blackDeck: gameMove.blackDeck.length,
-								blackHand: playerColor === 'black' ? gameMove.blackHand : [], // Only send black hand to black player
-								currentTurn: gameMove.currentTurn
-							}));
-						}
-					});
-
-					// Send updated hand to the current player
-					socket.send(JSON.stringify({
-						type: 'hand_update',
-						whiteDeck: gameMove.whiteDeck.length,
-						whiteHand: gameMove.whiteHand,
-						blackDeck: gameMove.blackDeck.length,
-						blackHand: gameMove.blackHand,
-						currentTurn: gameMove.currentTurn
-					}));
+					handleMove(socket, data);
 					break;
 
 				case 'pass':
