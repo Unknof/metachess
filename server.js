@@ -7,7 +7,7 @@ const { v4: uuidv4 } = require('uuid');
 const path = require('path');
 
 const DEFAULT_TIME_SECONDS = 180; // 3 minutes
-const INCREMENT_SECONDS = 1;      // 1 second increment
+const INCREMENT_SECONDS = 2;      // 2 second increment
 // Add CORS headers
 app.use((req, res, next) => {
 	res.header('Access-Control-Allow-Origin', '*');
@@ -32,11 +32,11 @@ function createDeck(color) {
 	// Standard MetaChess deck distribution
 	// You can adjust these numbers based on your game balance
 	const distribution = {
-		'p': 35, // pawns
+		'p': 30, // pawns
 		'n': 9,  // knights
 		'b': 8,  // bishops
 		'r': 8,  // rooks
-		'q': 5,  // queens
+		'q': 6,  // queens
 		'k': 6   // kings
 	};
 
