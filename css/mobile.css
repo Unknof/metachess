@@ -1,0 +1,158 @@
+/* iPhone 5/SE and other very small screens (320px width) */
+@media (max-width: 320px) {
+
+	/* Container adjustments for vertical centering */
+	.container {
+		display: flex;
+		flex-direction: column;
+		justify-content: space-between;
+		height: 100vh;
+		gap: 1px;
+		/* Reduced from 2px */
+	}
+
+	/* Opponent info */
+	.opponent-info {
+		font-size: 9px;
+		padding: 1px;
+		flex: 0 0 auto;
+		background: #f0f0f0;
+		text-align: center;
+	}
+
+	/* Board sizing and centering */
+	#board-container {
+		width: 100%;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		flex: 1 0 auto;
+		margin: auto 0;
+		padding: 0;
+		/* Remove any padding */
+	}
+
+	#chessboard {
+		width: 280px !important;
+		height: 280px !important;
+		max-height: 280px;
+	}
+
+	/* Card container adjustments - make much more compact */
+	.player-frame {
+		padding: 0;
+		margin: 0;
+		flex: 0 0 auto;
+		order: 3;
+	}
+
+	/* Integrate deck info into the card container to save space */
+	.deck-info {
+		font-size: 8px;
+		padding: 0;
+		position: absolute;
+		top: 0;
+		left: 4px;
+		z-index: 2;
+		background: rgba(240, 240, 240, 0.7);
+		border-radius: 2px;
+	}
+
+	.card-container {
+		display: flex;
+		flex-wrap: nowrap;
+		justify-content: space-between;
+		align-items: stretch;
+		width: 100%;
+		padding: 0 !important;
+		margin: 0 !important;
+		height: 45px;
+		min-height: 45px;
+		overflow-x: hidden;
+		/* Prevent scrolling */
+		box-sizing: border-box;
+		gap: 0;
+		/* No gap between cards */
+	}
+
+	/* Card sizing - even smaller */
+	.piece-card {
+		width: 18% !important;
+		/* 5 cards per row */
+		height: 45px !important;
+		/* Match container */
+		margin: 0 !important;
+		padding: 0 !important;
+		border-width: 1px !important;
+		box-sizing: border-box !important;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex: 0 0 15% !important;
+		/* Prevent flex-grow/shrink */
+	}
+
+	/* Style for active cards */
+	.piece-card.active {
+		border-color: #4285f4 !important;
+		box-shadow: 0 0 3px rgba(66, 133, 244, 0.8);
+		z-index: 1;
+	}
+
+	.card-content {
+		transform: scale(0.55);
+		transform-origin: center center;
+		/* Ensure scaling from center */
+	}
+
+	.piece-image {
+		width: 24px !important;
+		height: 24px !important;
+		margin-bottom: 0;
+	}
+
+	/* Make text even smaller */
+	.piece-name {
+		font-size: 6px !important;
+	}
+
+	/* Move time controls to the bottom and make more compact */
+	.time-controls {
+		padding: 2px 1px;
+		/* Reduced from 5px 2px */
+		justify-content: space-between;
+		margin: 1px 0;
+		/* Reduced from 2px 0 */
+		flex: 0 0 auto;
+		order: 4;
+		width: 100%;
+		max-width: 280px;
+		/* Match the board width */
+		margin-left: auto;
+		margin-right: auto;
+		background: #f0f0f0;
+	}
+
+	.timer {
+		font-size: 11px;
+		/* Reduced from 12px */
+		padding: 1px 2px;
+		/* Reduced from 2px 4px */
+	}
+
+	.pass-button,
+	.multiplayer-button {
+		padding: 1px 3px;
+		/* Reduced from 2px 4px */
+		height: 20px;
+		/* Reduced from 24px */
+		font-size: 9px;
+		/* Reduced from 10px */
+		width: 40px;
+		/* Set fixed width */
+		min-width: 40px;
+		/* Ensure minimum width */
+		margin: 0 1px;
+		/* Reduced from 0 2px */
+	}
+}

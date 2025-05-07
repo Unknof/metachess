@@ -1,0 +1,45 @@
+/* Header */
+header {
+	background-color: var(--highlight-color);
+	color: white;
+	padding: 15px 20px;
+	text-align: center;
+}
+
+/* Player frames */
+.player-frame {
+	padding: 15px;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+#white-player {
+	background-color: var(--white-panel-bg);
+}
+
+#black-player {
+	background-color: var(--black-panel-bg);
+}
+
+/* Status frame */
+#status-frame {
+	background-color: #f9f9f9;
+	padding: 10px 15px;
+	border-top: 1px solid #eee;
+	border-bottom: 1px solid #eee;
+	text-align: center;
+}
+
+/* Chessboard */
+#board-container {
+	display: flex;
+	justify-content: center;
+	padding: 20px 0;
+}
+
+#chessboard {
+	width: 480px;
+	height: 480px;
+	border: 2px solid #333;
+}

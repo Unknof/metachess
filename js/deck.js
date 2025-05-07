@@ -101,7 +101,6 @@ const MetachessDeck = (function () {
 				card.innerHTML = `
 					<div class="card-content">
 						<img src="${pieceUrl}" class="piece-image" alt="${pieceName}">
-						<div class="piece-name">${pieceName}</div>
 					</div>
 				`;
 			}

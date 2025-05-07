@@ -3,26 +3,41 @@
 
 <head>
 	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+	<meta name="viewport"
+		content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 	<title>MetaChess</title>
-	<link rel="stylesheet" href="css/styles.css">
 	<link rel="stylesheet" href="lib/chessboard.css">
 	<link rel="icon" href="favicon.ico" type="image/x-icon">
+	<link rel="stylesheet" href="css/base.css">
+	<link rel="stylesheet" href="css/layout.css">
+	<link rel="stylesheet" href="css/cards.css">
+	<link rel="stylesheet" href="css/modals.css">
+	<link rel="stylesheet" href="css/mobile.css">
 </head>
 
 <body>
 	<div class="container">
-		<!-- Only showing deck count for opponent, no cards -->
+		<!-- Opponent info at top -->
 		<div class="opponent-info">
 			<span class="deck-count">Opponent's Deck: <span id="opponent-deck-count">60</span></span>
 		</div>
 
-		<!-- Chess board -->
+		<!-- Chess board centered -->
 		<div id="board-container">
 			<div id="chessboard"></div>
 		</div>
 
-		<!-- Streamlined controls - time and pass button together -->
+		<!-- Player's cards -->
+		<div class="player-frame" id="player-area">
+			<div class="deck-info">
+				<span class="deck-count">Deck: <span id="player-deck-count">60</span></span>
+			</div>
+			<div class="card-container" id="player-cards">
+				<!-- Cards will be generated here by JavaScript -->
+			</div>
+		</div>
+
+		<!-- Time controls at bottom -->
 		<div class="time-controls">
 			<div class="timer white-timer">
 				<span id="white-time">3:00</span>
@@ -31,16 +46,6 @@
 			<button id="multiplayer-btn" class="multiplayer-button">Multi</button>
 			<div class="timer black-timer">
 				<span id="black-time">3:00</span>
-			</div>
-		</div>
-
-		<!-- Only player's cards with deck count -->
-		<div class="player-frame" id="player-area">
-			<div class="deck-info">
-				<span class="deck-count">Deck: <span id="player-deck-count">60</span></span>
-			</div>
-			<div class="card-container" id="player-cards">
-				<!-- Cards will be generated here by JavaScript -->
 			</div>
 		</div>
 

@@ -116,7 +116,7 @@ document.addEventListener('DOMContentLoaded', function () {
 		MetachessGame.initMultiplayer();
 	} else {
 		// Default to single player mode
-		document.getElementById('game-status').textContent = 'Single Player Mode';
+		//document.getElementById('game-status').textContent = 'Single Player Mode';
 	}
 
 	// Make sure both modals are hidden when an opponent joins
@@ -125,10 +125,13 @@ document.addEventListener('DOMContentLoaded', function () {
 		// Call the original
 		const result = originalInitMultiplayer.apply(this, arguments);
 
-		// Add additional code to ensure both modals are hidden when opponent_joined fires
+		// Add null checking before accessing elements
 		MetachessSocket.on('opponent_joined', () => {
-			document.getElementById('multiplayer-modal').style.display = 'none';
-			document.getElementById('waiting-modal').style.display = 'none';
+			const multiplayerModal = document.getElementById('multiplayer-modal');
+			const waitingModal = document.getElementById('waiting-modal');
+
+			if (multiplayerModal) multiplayerModal.style.display = 'none';
+			if (waitingModal) waitingModal.style.display = 'none';
 		});
 
 		return result;
