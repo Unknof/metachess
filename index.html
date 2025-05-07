@@ -36,8 +36,11 @@
 
 		<!-- Player's cards -->
 		<div class="player-frame" id="player-area">
-			<div class="deck-info">
-				<span class="deck-count">Deck: <span id="player-deck-count">60</span></span>
+			<div class="player-controls-row">
+				<div class="deck-info">
+					<span class="deck-count">Deck: <span id="player-deck-count">60</span></span>
+				</div>
+				<button id="pass-turn" class="pass-button">Pass</button>
 			</div>
 			<div class="card-container" id="player-cards">
 				<!-- Cards will be generated here by JavaScript -->
@@ -49,7 +52,6 @@
 			<div class="timer white-timer">
 				<span id="white-time">3:00</span>
 			</div>
-			<button id="pass-turn" class="pass-button">Pass</button>
 			<button id="multiplayer-btn" class="multiplayer-button">Multi</button>
 		</div>
 

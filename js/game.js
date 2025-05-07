@@ -92,8 +92,31 @@ const MetachessGame = (function () {
 		setupMobileCardContainers();
 
 		// Setup pass button handler for both colors
-		document.getElementById('pass-turn').addEventListener('click', () => {
-			passTurn();
+		document.getElementById('pass-turn').addEventListener('click', function () {
+			// Check for empty deck condition first
+			const emptyDeck = currentTurn === 'white' ?
+				(whiteDeck.length === 0) : (blackDeck.length === 0);
+
+			if (emptyDeck) {
+				// Show checking message
+				updateStatusMessage("Checking for valid moves...");
+
+				// Check if any card has valid moves
+				checkForValidMoves(currentTurn).then(hasValidMove => {
+					if (!hasValidMove) {
+						const winner = currentTurn === 'white' ? 'BLACK' : 'WHITE';
+						updateStatusMessage(`${currentTurn.toUpperCase()} has no cards in deck and no valid moves! ${winner} WINS!`);
+						gameOver = true;
+						disableAllControls();
+						playSound('gameEnd');
+					} else {
+						updateStatusMessage(`Cannot pass with empty deck. You must play a card.`);
+					}
+				});
+			} else {
+				// Regular pass
+				passTurn();
+			}
 		});
 
 		// If player color is somehow set (like in a reconnection scenario),
@@ -516,15 +539,31 @@ const MetachessGame = (function () {
 			return;
 		}
 
-		// Singleplayer pass logic that mimics server behavior
+		// Singleplayer pass logic
 		const passingPlayer = currentTurn;
 
-		// Time control logic (if implemented in singleplayer)
-		if (!timeControl.started && passingPlayer === 'white') {
-			timeControl.started = true;
-			startClock();
+		// Check if passing player has an empty deck
+		const emptyDeck = passingPlayer === 'white' ? (whiteDeck.length === 0) : (blackDeck.length === 0);
+
+		if (emptyDeck) {
+			// Cannot pass with empty deck - check if any valid moves exist
+			checkForValidMoves(passingPlayer).then(hasValidMove => {
+				if (!hasValidMove) {
+					// Game over - no cards in deck and no valid moves
+					const winner = passingPlayer === 'white' ? 'BLACK' : 'WHITE';
+					updateStatusMessage(`${passingPlayer.toUpperCase()} has no cards in deck and no valid moves! ${winner} WINS!`);
+					gameOver = true;
+					disableAllControls();
+					playSound('gameEnd');
+				} else {
+					// Has valid moves - must play one
+					updateStatusMessage(`Cannot pass with empty deck. You must play a card.`);
+				}
+			});
+			return;
 		}
 
+		// Regular pass logic continues here...
 		// Clear the passing player's hand (discard all cards)
 		if (passingPlayer === 'white') {
 			console.log(`White player passing - clearing hand with ${whiteHand.length} cards`);
@@ -562,12 +601,16 @@ const MetachessGame = (function () {
 		// Switch turn (updates current player and UI elements)
 		switchTurn();
 
+		// Show pass indicator
+		showPassIndicator();
+
 		// Status message
 		updateStatusMessage(
 			`${passingPlayer.toUpperCase()} passed the turn`
 		);
 
 		updateBoardBorder();
+		showPassIndicator();
 	}
 
 	// Update your initMultiplayer function
@@ -758,6 +801,9 @@ const MetachessGame = (function () {
 			// Synchronize with server's game state
 			synchronizeGameState(data.currentTurn);
 			updateHands();
+
+			// Show pass indicator
+			showPassIndicator();
 
 			// Show pass message
 			const passingPlayer = data.passingPlayer === playerColor ? 'You' : 'Opponent';
@@ -1106,6 +1152,59 @@ const MetachessGame = (function () {
 		} else {
 			boardEl.classList.add('active-black');
 		}
+	}
+
+	async function checkForValidMoves(player) {
+		const hand = player === 'white' ? whiteHand : blackHand;
+
+		// No cards in hand means no valid moves
+		if (hand.length === 0) return false;
+
+		// Try each card to see if it has valid moves
+		for (const card of hand) {
+			const pieceType = card;
+			const enginePieceType = pieceTypeMap[pieceType.toLowerCase()];
+
+			if (!enginePieceType) continue;
+
+			try {
+				const moveStr = await MetachessEngine.getBestMoveForPieceType(chess.fen(), enginePieceType);
+				if (moveStr && moveStr.length >= 4) {
+					// Found a valid move
+					return true;
+				}
+			} catch (error) {
+				console.warn(`Error checking moves for ${pieceType}:`, error);
+				continue;
+			}
+		}
+
+		// No valid moves found for any card
+		return false;
+	}
+
+	function showPassIndicator() {
+		// Create or get pass indicator element
+		let passIndicator = document.getElementById('pass-indicator');
+		if (!passIndicator) {
+			passIndicator = document.createElement('div');
+			passIndicator.id = 'pass-indicator';
+			passIndicator.className = 'pass-indicator';
+			passIndicator.textContent = 'PASS';
+			document.getElementById('board-container').appendChild(passIndicator);
+		}
+
+		// Make visible with animation
+		setTimeout(() => {
+			passIndicator.style.opacity = '1';
+			passIndicator.style.visibility = 'visible';
+
+			// Hide after 1 second
+			setTimeout(() => {
+				passIndicator.style.opacity = '0';
+				passIndicator.style.visibility = 'hidden';
+			}, 1000);
+		}, 50);
 	}
 
 	return {

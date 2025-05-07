@@ -288,11 +288,24 @@ wss.on('connection', (socket) => {
 					const gamePass = games[data.gameId];
 					if (!gamePass) return;
 
+					const passingPlayer = data.player;
+
+					// Check if passing player has an empty deck
+					const emptyDeck = passingPlayer === 'white' ?
+						(gamePass.whiteDeck.length === 0) : (gamePass.blackDeck.length === 0);
+
+					if (emptyDeck) {
+						// Player can't pass with empty deck
+						socket.send(JSON.stringify({
+							type: 'cannot_pass',
+							message: 'You cannot pass with an empty deck. You must play a card or check for loss.'
+						}));
+						return;
+					}
+
 					console.log(`Player ${data.player} is passing their turn in game ${data.gameId}`);
 
 					// Get the player who is passing
-					const passingPlayer = data.player;
-
 					// Verify it's actually this player's turn
 					if (gamePass.currentTurn !== passingPlayer) {
 						socket.send(JSON.stringify({

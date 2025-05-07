@@ -47,7 +47,6 @@
 
 	/* Card container adjustments - make much more compact */
 	.player-frame {
-		padding: 4px;
 		margin: 0;
 		flex: 0 0 auto;
 		order: 3;
@@ -97,7 +96,7 @@
 
 	/* Card sizing - even smaller */
 	.piece-card {
-		width: 20% !important;
+		width: 18% !important;
 		height: 100% !important;
 		/* Fill the container height */
 		margin: 0 !important;
@@ -183,19 +182,19 @@
 		order: 1;
 		flex: 0 0 auto;
 		width: 100%;
-		margin: 0 0 2px 0;
-		padding: 2px;
+		display: flex;
 		justify-content: center;
 		background: rgba(240, 240, 240, 0.9);
 		border-bottom: 1px solid #ddd;
+		margin: 0 0 2px 0;
+		padding: 2px;
 	}
 
 	#board-container {
 		order: 2;
 	}
 
-	.player-frame,
-	.card-container {
+	.player-frame {
 		order: 3;
 	}
 
@@ -203,11 +202,12 @@
 		order: 4;
 		flex: 0 0 auto;
 		width: 100%;
-		margin: 2px 0 0 0;
-		padding: 2px;
+		display: flex;
 		justify-content: center;
 		background: rgba(240, 240, 240, 0.9);
 		border-top: 1px solid #ddd;
+		margin: 2px 0 0 0;
+		padding: 2px;
 	}
 
 	.time-controls.opponent .pass-button,
