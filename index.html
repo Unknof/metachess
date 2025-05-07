@@ -22,6 +22,13 @@
 			<span class="deck-count">Opponent's Deck: <span id="opponent-deck-count">60</span></span>
 		</div>
 
+		<!-- Opponent's time control (above board) -->
+		<div class="time-controls opponent">
+			<div class="timer black-timer">
+				<span id="black-time">3:00</span>
+			</div>
+		</div>
+
 		<!-- Chess board centered -->
 		<div id="board-container">
 			<div id="chessboard"></div>
@@ -37,16 +44,13 @@
 			</div>
 		</div>
 
-		<!-- Time controls at bottom -->
-		<div class="time-controls">
+		<!-- Player's time control (below cards) -->
+		<div class="time-controls player">
 			<div class="timer white-timer">
 				<span id="white-time">3:00</span>
 			</div>
 			<button id="pass-turn" class="pass-button">Pass</button>
 			<button id="multiplayer-btn" class="multiplayer-button">Multi</button>
-			<div class="timer black-timer">
-				<span id="black-time">3:00</span>
-			</div>
 		</div>
 
 		<!-- Keep status frame but hidden -->

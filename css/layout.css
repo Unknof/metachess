@@ -43,3 +43,15 @@ header {
 	height: 480px;
 	border: 2px solid #333;
 }
+
+#chessboard.active-white {
+	border: 4px solid #ffffff !important;
+}
+
+#chessboard.active-black {
+	border: 4px solid #000000 !important;
+}
+
+.highlight-square {
+	background: #ffe680 !important;
+}

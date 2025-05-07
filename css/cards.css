@@ -27,6 +27,15 @@
 	transition: transform 0.2s, box-shadow 0.2s, all 0.2s ease;
 }
 
+.piece-card:hover {
+	border-color: #2196f3;
+	/* Highlight border color */
+	transform: scale(1.08);
+	box-shadow: 0 2px 8px rgba(33, 150, 243, 0.15);
+	z-index: 2;
+	transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+
 /* Add hover effect from .card */
 .piece-card:hover:not(.disabled) {
 	transform: translateY(-5px);

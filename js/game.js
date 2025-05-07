@@ -37,13 +37,15 @@ const MetachessGame = (function () {
 		const cardContainers = document.querySelectorAll('.card-container');
 
 		cardContainers.forEach(container => {
-			// Add visual indicator for scrolling on mobile
+			// Remove or comment out this block to stop adding the swipe indicator
+			/*
 			if (window.innerWidth <= 768) {
 				const scrollIndicator = document.createElement('div');
 				scrollIndicator.className = 'scroll-indicator';
 				scrollIndicator.innerHTML = '&laquo; swipe &raquo;';
 				container.parentNode.insertBefore(scrollIndicator, container);
-			}
+			 }
+			*/
 		});
 	}
 
@@ -165,10 +167,21 @@ const MetachessGame = (function () {
 		// Add click handlers to cards
 		const activeCards = document.querySelectorAll(`#${containerToUse} .piece-card`);
 		activeCards.forEach(card => {
+			// Handle clicks for both desktop and mobile
 			card.addEventListener('click', () => {
 				console.log("Card clicked:", card.dataset.pieceType, card.dataset.index);
 				selectCard(card.dataset.pieceType, parseInt(card.dataset.index));
 			});
+
+			// For mobile, add a simple touch handler to prevent delays
+			if (window.innerWidth <= 768) {
+				card.addEventListener('touchend', function (e) {
+					// Prevent the subsequent click event to avoid double activation
+					e.preventDefault();
+					console.log("Card touched:", card.dataset.pieceType, card.dataset.index);
+					selectCard(card.dataset.pieceType, parseInt(card.dataset.index));
+				});
+			}
 		});
 
 		// Clear selection
@@ -257,7 +270,7 @@ const MetachessGame = (function () {
 						const targetSquare = chess.get(to);
 						isKingCapture = targetSquare && targetSquare.type === 'k';
 
-						const isCapture = targetSquare !== null;
+						isCapture = targetSquare !== null;
 
 						// Try to make the move in chess.js format
 						move = chess.move({
@@ -310,6 +323,7 @@ const MetachessGame = (function () {
 						// Switch turn if game not over
 						if (!gameOver) {
 							switchTurn();
+							updateBoardBorder();
 						}
 					} else {
 						console.error("Move was not legal:", moveStr);
@@ -399,6 +413,8 @@ const MetachessGame = (function () {
 		} else {
 			updateStatusMessage(`${currentTurn.toUpperCase()}'s turn`);
 		}
+
+		updateBoardBorder();
 	}
 
 	function checkGameStatus() {
@@ -550,6 +566,8 @@ const MetachessGame = (function () {
 		updateStatusMessage(
 			`${passingPlayer.toUpperCase()} passed the turn`
 		);
+
+		updateBoardBorder();
 	}
 
 	// Update your initMultiplayer function
@@ -1038,11 +1056,32 @@ const MetachessGame = (function () {
 
 	function playSound(type) {
 		try {
-			// Reset sound to beginning (in case it's already playing)
+			// Make sure the type is valid
+			if (!soundEffects[type]) {
+				console.error(`Invalid sound type: ${type}`);
+				return;
+			}
+
+			// Verify sound is loaded
+			if (soundEffects[type].readyState === 0) {
+				console.warn(`Sound ${type} not loaded yet`);
+				// Try to load it
+				soundEffects[type].load();
+			}
+
+			// Force-stop any playing sounds first
+			soundEffects[type].pause();
 			soundEffects[type].currentTime = 0;
-			soundEffects[type].play().catch(error => {
-				console.warn(`Failed to play ${type} sound:`, error);
-			});
+
+			// Play with a tiny delay to ensure browser processes it
+			setTimeout(() => {
+				const playPromise = soundEffects[type].play();
+				if (playPromise) {
+					playPromise.catch(error => {
+						console.warn(`Failed to play ${type} sound:`, error);
+					});
+				}
+			}, 10);
 		} catch (error) {
 			console.warn(`Error playing ${type} sound:`, error);
 		}
@@ -1055,6 +1094,17 @@ const MetachessGame = (function () {
 		if (statusElement) {
 			statusElement.textContent = message;
 			// Don't change visibility
+		}
+	}
+
+	function updateBoardBorder() {
+		const boardEl = document.getElementById('chessboard');
+		if (!boardEl) return;
+		boardEl.classList.remove('active-white', 'active-black');
+		if (currentTurn === 'white') {
+			boardEl.classList.add('active-white');
+		} else {
+			boardEl.classList.add('active-black');
 		}
 	}
 
