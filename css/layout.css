@@ -8,10 +8,17 @@ header {
 
 /* Player frames */
 .player-frame {
+	margin-top: 0 !important;
+	/* Remove any top margin */
+	margin-bottom: 0 !important;
+	flex: 0 0 auto;
+	order: 4;
+	width: 100%;
+	position: relative;
+	background: rgba(245, 245, 245, 0.9);
 	display: flex;
 	flex-direction: column;
-	gap: 10px;
-	position: relative;
+	border-top: 1px solid #ddd;
 }
 
 /* Add a flex row for deck info and pass button */
