@@ -32,12 +32,12 @@ function createDeck(color) {
 	// Standard MetaChess deck distribution
 	// You can adjust these numbers based on your game balance
 	const distribution = {
-		'p': 30, // pawns
-		'n': 9,  // knights
-		'b': 8,  // bishops
-		'r': 8,  // rooks
-		'q': 6,  // queens
-		'k': 6   // kings
+		'p': 50, // pawns
+		'n': 18,  // knights
+		'b': 18,  // bishops
+		'r': 14,  // rooks
+		'q': 12,  // queens
+		'k': 8   // kings
 	};
 
 	for (const [piece, count] of Object.entries(distribution)) {

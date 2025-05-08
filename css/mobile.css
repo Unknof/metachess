@@ -59,18 +59,6 @@
 	}
 
 	/* Integrate deck info into the card container to save space */
-	.deck-info {
-		font-size: 10px;
-		padding: 2px 5px;
-		background: rgba(255, 255, 255, 0.8);
-		border-radius: 3px;
-		border: 1px solid #ddd;
-		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-		position: static;
-		top: auto;
-		left: auto;
-		margin: 0;
-	}
 
 	.card-container {
 		display: flex;
@@ -142,8 +130,7 @@
 		min-width: 40px;
 	}
 
-	.pass-button,
-	.multiplayer-button {
+	.pass-button {
 		padding: 1px 3px;
 		/* Reduced from 2px 4px */
 		height: 20px;
@@ -173,7 +160,19 @@
 	}
 
 	.multiplayer-button {
-		display: none;
+		padding: 2px 8px;
+		height: auto;
+		font-size: 10px;
+		background: #4a90e2;
+		color: white;
+		border: none;
+		border-radius: 3px;
+		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+		position: static;
+		display: inline-block;
+		/* Explicitly ensure it's visible */
+		top: auto;
+		right: auto;
 	}
 
 	.time-controls.opponent {
@@ -192,13 +191,12 @@
 		display: none;
 	}
 
-	.time-controls.opponent .pass-button,
-	.time-controls.opponent .multiplayer-button {
-		display: none;
-	}
-
-	.timer-bar {
-		flex: 0 0 auto;
+	.timer-bar.white-timer-bar {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: space-between;
+		align-items: center;
+		padding: 2px 4px;
 	}
 
 	/* Create control bar below the board */
