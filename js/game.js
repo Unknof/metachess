@@ -1097,6 +1097,27 @@ const MetachessGame = (function () {
 				timeControl.black = Math.max(0, timeControl.black - 0.1);
 			}
 			updateClockDisplay();
+
+			// Add this time-out check
+			if (currentTurn === 'white' && timeControl.white <= 0) {
+				// White ran out of time
+				clearInterval(timeControl.timerId);
+				timeControl.timerId = null;
+				timeControl.white = 0;
+				gameOver = true;
+				console.log("White ran out of time!");
+				updateStatusMessage("Time's up! BLACK WINS!");
+				disableAllControls();
+			} else if (currentTurn === 'black' && timeControl.black <= 0) {
+				// Black ran out of time
+				clearInterval(timeControl.timerId);
+				timeControl.timerId = null;
+				timeControl.black = 0;
+				gameOver = true;
+				console.log("Black ran out of time!");
+				updateStatusMessage("Time's up! WHITE WINS!");
+				disableAllControls();
+			}
 		}, 100); // Update every 100ms for smoother display
 	}
 
@@ -1207,6 +1228,24 @@ const MetachessGame = (function () {
 		}, 50);
 	}
 
+	// Add these testing helper methods
+	function setTimeControl(newTimeControl) {
+		timeControl = newTimeControl;
+		updateClockDisplay();
+
+		// Start the clock if it should be started
+		if (timeControl.started && !timeControl.timerId) {
+			console.log("Starting clock with time control");
+			startClock();
+		}
+	}
+
+	function setTurn(turn) {
+		currentTurn = turn;
+		togglePlayerControls();
+	}
+
+
 	return {
 		init,
 		passTurn,
@@ -1224,6 +1263,19 @@ const MetachessGame = (function () {
 		isGameOver() {
 			return gameOver;
 		},
-		selectCard // Expose this existing method
+		getTimeControl() {
+			return { ...timeControl };  // Return a copy to prevent modification
+		},
+		selectCard, // Expose this existing method
+		setTimeControl, // Expose for testing purposes
+		setTurn, // Expose for testing purposes
+		updateStatusMessage, // Expose for testing purposes
+		disableAllControls // Expose for testing purposes
 	};
 })();
+
+// Expose these for testing purposes
+window.MetachessGame = {
+	...MetachessGame
+	// No need to add individual functions here, they're already in MetachessGame object
+};

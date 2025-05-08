@@ -18,43 +18,40 @@
 <body>
 	<div class="container">
 		<!-- Opponent info at top -->
-		<div class="opponent-info">
-			<span class="deck-count">Opponent's Deck: <span id="opponent-deck-count">60</span></span>
-		</div>
 
-		<!-- Opponent's time control (above board) -->
-		<div class="time-controls opponent">
-			<div class="timer black-timer">
-				<span id="black-time">3:00</span>
-			</div>
-		</div>
-
-		<!-- Chess board centered -->
+		<!-- Chess board with embedded timers -->
 		<div id="board-container">
+			<div class="timer-bar black-timer-bar">
+				<div class="timer black-timer">
+					<span id="black-time">3:00</span>
+				</div>
+				<div class="opponent-info">
+					<span class="deck-count">Opponent's Deck: <span id="opponent-deck-count">60</span></span>
+				</div>
+			</div>
+
 			<div id="chessboard"></div>
+			<div class="timer-bar white-timer-bar">
+				<div class="timer white-timer">
+					<span id="white-time">3:00</span>
+				</div>
+				<div class="deck-info">
+					<span class="deck-count">Deck: <span id="player-deck-count">60</span></span>
+				</div>
+				<button id="pass-turn" class="pass-button">Pass</button>
+			</div>
 		</div>
 
 		<!-- Player's cards -->
 		<div class="player-frame" id="player-area">
 			<div class="player-controls-row">
-				<div class="deck-info">
-					<span class="deck-count">Deck: <span id="player-deck-count">60</span></span>
-				</div>
-				<button id="pass-turn" class="pass-button">Pass</button>
 			</div>
 			<div class="card-container" id="player-cards">
 				<!-- Cards will be generated here by JavaScript -->
 			</div>
 		</div>
 
-		<!-- Player's time control (below cards) -->
-		<div class="time-controls player">
-			<div class="timer white-timer">
-				<span id="white-time">3:00</span>
-			</div>
-			<button id="multiplayer-btn" class="multiplayer-button">Multi</button>
-		</div>
-
+		<!-- Remove the timers from their original locations -->
 		<!-- Keep status frame but hidden -->
 		<div id="status-frame" style="display: none;">
 			<div id="status-message">Ready</div>
