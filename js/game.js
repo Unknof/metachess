@@ -30,7 +30,8 @@ const MetachessGame = (function () {
 
 	const soundEffects = {
 		move: new Audio('sounds/move.mp3'),
-		capture: new Audio('sounds/capture.mp3')
+		capture: new Audio('sounds/capture.mp3'),
+		win: new Audio('sounds/win.mp3')
 	};
 
 	function setupMobileCardContainers() {
@@ -102,14 +103,14 @@ const MetachessGame = (function () {
 				updateStatusMessage("Checking for valid moves...");
 
 				// Check if any card has valid moves
-				checkForValidMoves(currentTurn).then(hasValidMove => {
-					if (!hasValidMove) {
-						const winner = currentTurn === 'white' ? 'BLACK' : 'WHITE';
-						gameOverWin(winner, "no Cards")
-					} else {
-						updateStatusMessage(`Cannot pass with empty deck. You must play a card.`);
-					}
-				});
+				const hasValidMove = checkForValidMoves(currentTurn);
+				if (!hasValidMove) {
+					const winner = currentTurn === 'white' ? 'BLACK' : 'WHITE';
+					gameOverWin(winner, "no Cards")
+				} else {
+					updateStatusMessage(`Cannot pass with empty deck. You must play a card.`);
+				}
+
 			} else {
 				// Regular pass
 				passTurn();
@@ -436,18 +437,19 @@ const MetachessGame = (function () {
 			const emptyDeck = currentTurn === 'white' ? (whiteDeck.length === 0) : (blackDeck.length === 0);
 
 			if (emptyDeck) {
-				checkForValidMoves(currentTurn).then(hasValidMove => {
-					if (!hasValidMove) {
-						// Game over - no cards in deck and no valid moves
-						gameOverWin(currentTurn, 'no_cards');
-						return;
-					} else {
-						// Has valid moves - must play one
-						updateStatusMessage(`Cannot pass with empty deck. You must play a card.`);
-					}
-				});
+				const hasValidMove = checkForValidMoves(currentTurn);
+				if (!hasValidMove) {
+					// Game over - no cards in deck and no valid moves
+					gameOverWin(currentTurn, 'no_cards');
+					return;
+				} else {
+					// Has valid moves - must play one
+					updateStatusMessage(`Cannot pass with empty deck. You must play a card.`);
+				}
 			}
+
 		}
+
 
 		// Update game status to show active game
 		if (playerColor) {
@@ -522,7 +524,7 @@ const MetachessGame = (function () {
 
 		if (emptyDeck) {
 			// Cannot pass with empty deck - check if any valid moves exist
-			const hasValidMove = checkForValidMovesSynchronous(passingPlayer);
+			const hasValidMove = checkForValidMoves(passingPlayer);
 			if (!hasValidMove) {
 				gameOverWin(passingPlayer, 'no_cards');
 			} else {
@@ -1153,7 +1155,7 @@ const MetachessGame = (function () {
 		}
 	}
 
-	function checkForValidMovesSynchronous(player) {
+	function checkForValidMoves(player) {
 		const hand = player === 'white' ? whiteHand : blackHand;
 
 		// No cards in hand means no valid moves
@@ -1197,13 +1199,30 @@ const MetachessGame = (function () {
 
 	// Helper function to check if a piece type has any valid moves
 	function hasValidMovesForPiece(chess, pieceType) {
-		// Convert to single character representation used by chess.js
-		const pieceChar = pieceType.charAt(0).toLowerCase();
+		// Find the single-character representation for this piece type
+		let pieceChar;
 
-		// Get all legal moves from chess.js - these are already filtered for check
+		// If it's already a single character (like 'n'), use it
+		if (pieceType.length === 1) {
+			pieceChar = pieceType.toLowerCase();
+		} else {
+			// Otherwise, reverse-lookup in the pieceTypeMap
+			for (const [char, name] of Object.entries(pieceTypeMap)) {
+				if (name === pieceType.toLowerCase()) {
+					pieceChar = char;
+					break;
+				}
+			}
+		}
+
+		// If no valid mapping found, log error and return false
+		if (!pieceChar) {
+			console.error("Invalid piece type:", pieceType);
+			return false;
+		}
+
+		// Rest of your function remains the same
 		const moves = chess.moves({ verbose: true });
-
-		// Find moves specifically for this piece type
 		const validMoves = [];
 
 		for (const move of moves) {
@@ -1211,12 +1230,6 @@ const MetachessGame = (function () {
 			if (piece && piece.type === pieceChar) {
 				validMoves.push(move);
 			}
-		}
-
-		// Add debug logging in check situations
-		if (chess.in_check() && validMoves.length > 0) {
-			console.log(`CHECK: ${pieceType} has ${validMoves.length} valid moves:`,
-				validMoves.map(m => `${m.from}-${m.to}`));
 		}
 
 		return validMoves.length > 0;
@@ -1300,7 +1313,7 @@ const MetachessGame = (function () {
 		disableAllControls();
 
 		// Play game end sound
-		playSound('gameEnd');
+		playSound('win');
 		return statusMessage;
 	}
 
