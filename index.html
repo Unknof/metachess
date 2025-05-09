@@ -40,7 +40,36 @@
 				</div>
 				<button id="pass-turn" class="pass-button">Pass</button>
 			</div>
-			<button id="multiplayer-btn" class="multiplayer-button">Versus</button>
+			<button id="menu-button" class="menu-button">Menu</button>
+			<div id="game-options-modal" class="modal">
+				<div class="modal-content small-modal">
+					<div class="modal-header">
+						<h3>Game Options</h3>
+						<span class="close-modal">&times;</span>
+					</div>
+					<div class="modal-body">
+						<button id="multiplayer-btn" class="multiplayer-button">Versus</button>
+						<button id="concede-button" class="menu-button danger">Concede Game</button>
+					</div>
+				</div>
+			</div>
+
+			<!-- Concede Confirmation Modal -->
+			<div id="concede-confirm-modal" class="modal">
+				<div class="modal-content small-modal">
+					<div class="modal-header">
+						<h3>Confirm Concede</h3>
+						<span class="close-modal">&times;</span>
+					</div>
+					<div class="modal-body">
+						<p>Are you sure you want to concede the game?</p>
+						<div class="button-row">
+							<button id="confirm-concede" class="menu-button danger">Yes, Concede</button>
+							<button id="cancel-concede" class="menu-button">Cancel</button>
+						</div>
+					</div>
+				</div>
+			</div>
 		</div>
 
 		<!-- Player's cards -->

@@ -59,6 +59,7 @@ const MetachessGame = (function () {
 
 		// Clear any move highlighting
 		updateLastMoveHighlighting(null, null);
+		setupGameOptionsModal();
 
 		// Initialize decks with appropriate case
 		whiteDeck = MetachessDeck.createDeck();
@@ -122,6 +123,9 @@ const MetachessGame = (function () {
 		if (playerColor === 'black' && board) {
 			board.orientation('black');
 		}
+
+		// Call setupGameOptionsModal
+		setupGameOptionsModal();
 	}
 
 	function updateDecks() {
@@ -326,6 +330,11 @@ const MetachessGame = (function () {
 
 						if (currentTurn === 'white' && !timeControl.started) {
 							startClock();
+						}
+						if (!playerColor) {  // Only in singleplayer mode
+							const INCREMENT_SECONDS = 2; // 2 second increment (same as in passTurn)
+							timeControl[currentTurn] += INCREMENT_SECONDS;
+							updateClockDisplay();
 						}
 
 						// NEW: If a king was captured, declare the capturing player as winner
@@ -1373,10 +1382,6 @@ const MetachessGame = (function () {
 		return false;
 	}
 
-
-
-
-
 	// Add these testing helper methods
 	function setTimeControl(newTimeControl) {
 		timeControl = newTimeControl;
@@ -1394,6 +1399,87 @@ const MetachessGame = (function () {
 		togglePlayerControls();
 	}
 
+	// Add this function at the end of your MetachessGame module
+	function setupGameOptionsModal() {
+		// Get modal elements
+		const gameOptionsModal = document.getElementById('game-options-modal');
+		const concedeConfirmModal = document.getElementById('concede-confirm-modal');
+
+		const menuButton = document.getElementById('menu-button');
+		if (menuButton) {
+			menuButton.addEventListener('click', function () {
+				gameOptionsModal.style.display = 'flex';
+			});
+		}
+		// Setup the multiplayer button to open the options modal
+		const multiplayerButton = document.querySelector('.multiplayer-button');
+		if (multiplayerButton) {
+			// Replace the current click event with our modal
+			const newButton = multiplayerButton.cloneNode(true);
+			multiplayerButton.parentNode.replaceChild(newButton, multiplayerButton);
+
+			newButton.addEventListener('click', function () {
+				gameOptionsModal.style.display = 'flex';
+			});
+		}
+
+		// Setup button handlers
+		document.getElementById('multiplayer-btn').addEventListener('click', function () {
+			// Explicitly hide the game options modal
+			gameOptionsModal.style.display = 'none';
+
+			// Small delay before showing multiplayer options to ensure DOM updates
+			setTimeout(() => {
+				showMultiplayerOptions();
+			}, 50);
+		});
+
+		document.getElementById('concede-button').addEventListener('click', function () {
+			gameOptionsModal.style.display = 'none';
+			concedeConfirmModal.style.display = 'flex';
+		});
+
+		document.getElementById('confirm-concede').addEventListener('click', function () {
+			concedeConfirmModal.style.display = 'none';
+
+			// Determine the conceding player
+			const concedingPlayer = playerColor || currentTurn;
+
+			// Concede the game
+			gameOverWin(concedingPlayer, 'resignation');
+
+			// If in multiplayer, notify the other player
+			if (playerColor && MetachessSocket.isConnected()) {
+				MetachessSocket.sendGameOver({
+					gameId: MetachessSocket.gameId,
+					winner: concedingPlayer === 'white' ? 'black' : 'white',
+					reason: 'resignation'
+				});
+			}
+		});
+
+		document.getElementById('cancel-concede').addEventListener('click', function () {
+			concedeConfirmModal.style.display = 'none';
+		});
+
+		// Setup all close buttons
+		document.querySelectorAll('.close-modal').forEach(button => {
+			button.addEventListener('click', function () {
+				gameOptionsModal.style.display = 'none';
+				concedeConfirmModal.style.display = 'none';
+			});
+		});
+
+		// Close modal when clicking outside
+		window.addEventListener('click', function (event) {
+			if (event.target === gameOptionsModal) {
+				gameOptionsModal.style.display = 'none';
+			}
+			if (event.target === concedeConfirmModal) {
+				concedeConfirmModal.style.display = 'none';
+			}
+		});
+	}
 
 	return {
 		init,

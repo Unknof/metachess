@@ -88,7 +88,8 @@ header {
 .timer,
 .pass-button,
 .multiplayer-button,
-.spacer {
+.spacer,
+#menu-button {
 	/* Fixed width instead of stretching */
 	width: 110px;
 	/* Fixed width that fits content */
@@ -118,7 +119,8 @@ header {
 .deck-info,
 .timer,
 .pass-button,
-.multiplayer-button {
+.multiplayer-button,
+#menu-button {
 	background: var(--button-bg, #4a90e2);
 	color: white;
 	border: none;
@@ -391,4 +393,59 @@ header {
 .timer.game-over.low-time {
 	animation: none;
 	background-color: #888 !important;
+}
+
+/* Game Options Modal Styles */
+.small-modal {
+	width: 300px;
+	max-width: 90%;
+}
+
+.modal-header {
+	padding: 12px 15px;
+	background-color: #333;
+	color: white;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	border-top-left-radius: 8px;
+	border-top-right-radius: 8px;
+}
+
+.modal-header h3 {
+	margin: 0;
+	font-size: 18px;
+}
+
+.modal-body {
+	padding: 20px;
+	display: flex;
+	flex-direction: column;
+}
+
+.close-modal {
+	color: white;
+	font-size: 24px;
+	cursor: pointer;
+}
+
+.close-modal:hover {
+	color: #ccc;
+}
+
+
+
+.button-row {
+	display: flex;
+	justify-content: space-between;
+	gap: 10px;
+	margin-top: 10px;
+}
+
+.danger {
+	background-color: #d83c3c;
+}
+
+.danger:hover {
+	background-color: #a32a2a;
 }
