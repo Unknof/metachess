@@ -66,7 +66,7 @@ const MetachessDeck = (function () {
 		return drawn;
 	}
 
-	function renderCards(hand, containerId, color = 'white', isActive = false) {
+	function renderCards(hand, containerId, color = 'white', isActive = false, validMoves = null) {
 		// Normalize color to lowercase and ensure it's either 'white' or 'black'
 		color = (color && color.toLowerCase() === 'black') ? 'black' : 'white';
 
@@ -75,7 +75,9 @@ const MetachessDeck = (function () {
 
 		hand.forEach((pieceType, index) => {
 			const card = document.createElement('div');
-			card.className = `piece-card ${isActive ? 'active' : 'inactive'}`;
+			const isValid = validMoves === null || validMoves[index];
+
+			card.className = `piece-card ${isActive ? 'active' : 'inactive'} ${isValid ? '' : 'disabled'}`;
 			card.dataset.pieceType = pieceType;
 			card.dataset.index = index;
 

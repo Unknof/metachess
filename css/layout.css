@@ -286,6 +286,12 @@ header {
 	background: #ffe680 !important;
 }
 
+/* Add this with your other chess board styles */
+.check-highlight {
+	background-color: rgba(255, 0, 0, 0.4) !important;
+	box-shadow: inset 0 0 5px 3px rgba(255, 0, 0, 0.8) !important;
+}
+
 /* Pass indicator overlay */
 .pass-indicator {
 	position: absolute;

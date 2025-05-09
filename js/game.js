@@ -177,18 +177,27 @@ const MetachessGame = (function () {
 				currentTurn === 'white' ? blackDeck.length : whiteDeck.length;
 		}
 
-		// Render only current player's cards
+		const currentHand = playerToRender === 'white' ? whiteHand : blackHand;
+		const validMoves = checkCardValiditySynchronous(currentHand);
+
+		// Render only current player's cards - NOW WITH validMoves parameter
 		if (playerToRender === 'white') {
-			MetachessDeck.renderCards(whiteHand, containerToUse, 'white', currentTurn === 'white');
+			MetachessDeck.renderCards(whiteHand, containerToUse, 'white', currentTurn === 'white', validMoves);
 		} else {
-			MetachessDeck.renderCards(blackHand, containerToUse, 'black', currentTurn === 'black');
+			MetachessDeck.renderCards(blackHand, containerToUse, 'black', currentTurn === 'black', validMoves);
 		}
 
 		// Add click handlers to cards
-		const activeCards = document.querySelectorAll(`#${containerToUse} .piece-card`);
-		activeCards.forEach(card => {
+		const playercards = document.querySelectorAll(`#${containerToUse} .piece-card`);
+		playercards.forEach(card => {
 			// Handle clicks for both desktop and mobile
 			card.addEventListener('click', () => {
+				if (card.classList.contains('disabled')) {
+					const pieceType = card.dataset.pieceType;
+					const pieceName = pieceTypeMap[pieceType.toLowerCase()] || pieceType;
+					updateStatusMessage(`That ${pieceName} has no valid moves`);
+					return;
+				}
 				console.log("Card clicked:", card.dataset.pieceType, card.dataset.index);
 				selectCard(card.dataset.pieceType, parseInt(card.dataset.index));
 			});
@@ -305,6 +314,7 @@ const MetachessGame = (function () {
 					if (move) {
 						// Update board display
 						board.position(chess.fen());
+						highlightKingInCheck(); // Add this line
 
 						if (move) {
 							playSound(isCapture ? 'capture' : 'move');
@@ -407,6 +417,10 @@ const MetachessGame = (function () {
 		// Update the board display
 		if (board) {
 			board.position(chess.fen());
+			highlightKingInCheck(); // Add this line
+		}
+		if (checkForCheckmate()) {
+			return; // Game is over, exit switchTurn
 		}
 
 		// If using Stockfish, reset it with the new position
@@ -510,20 +524,15 @@ const MetachessGame = (function () {
 
 		if (emptyDeck) {
 			// Cannot pass with empty deck - check if any valid moves exist
-			checkForValidMoves(passingPlayer).then(hasValidMove => {
-				if (!hasValidMove) {
-					// Game over - no cards in deck and no valid moves
-					gameOverWin(passingPlayer, 'no_cards');
-				} else {
-					// Has valid moves - must play one
-					updateStatusMessage(`Cannot pass with empty deck. You must play a card.`);
-				}
-			});
+			const hasValidMove = checkForValidMovesSynchronous(passingPlayer);
+			if (!hasValidMove) {
+				gameOverWin(passingPlayer, 'no_cards');
+			} else {
+				updateStatusMessage(`Cannot pass with empty deck. You must play a card.`);
+			}
 			return;
 		}
 
-		// Time control handling
-		const passTime = Date.now();
 
 		// Start clock on first pass if not already started
 		if (!timeControl.started) {
@@ -894,18 +903,21 @@ const MetachessGame = (function () {
 		if (move) {
 			// Update board display
 			board.position(chess.fen());
+			highlightKingInCheck(); // Add this line
 
 			playSound(isCapture ? 'capture' : 'move');
 
 			// Highlight last move
 			updateLastMoveHighlighting(move.from, move.to);
 
+			if (checkForCheckmate()) {
+				return; // Game is over, exit function
+			}
+
 			// NEW: If a king was captured, declare the capturing player as winner
 			if (isKingCapture) {
 				const winner = currentTurn === 'white' ? 'WHITE' : 'BLACK';
-				updateStatusMessage(`${winner} captured the king and WINS!`);
-				gameOver = true;
-				disableAllControls();
+				gameOverWin(winner, "king_capture");
 
 				// Notify other player in multiplayer mode
 				if (playerColor && MetachessSocket.isConnected()) {
@@ -1143,7 +1155,7 @@ const MetachessGame = (function () {
 		}
 	}
 
-	async function checkForValidMoves(player) {
+	function checkForValidMovesSynchronous(player) {
 		const hand = player === 'white' ? whiteHand : blackHand;
 
 		// No cards in hand means no valid moves
@@ -1156,20 +1168,60 @@ const MetachessGame = (function () {
 
 			if (!enginePieceType) continue;
 
-			try {
-				const moveStr = await MetachessEngine.getBestMoveForPieceType(chess.fen(), enginePieceType);
-				if (moveStr && moveStr.length >= 4) {
-					// Found a valid move
-					return true;
-				}
-			} catch (error) {
-				console.warn(`Error checking moves for ${pieceType}:`, error);
-				continue;
+			// Use synchronous check for valid moves
+			if (hasValidMovesForPiece(chess, enginePieceType)) {
+				return true;
 			}
 		}
 
 		// No valid moves found for any card
 		return false;
+	}
+
+	function checkCardValiditySynchronous(hand) {
+		const validMoves = {};
+
+		for (let i = 0; i < hand.length; i++) {
+			const pieceType = hand[i];
+			const enginePieceType = pieceTypeMap[pieceType.toLowerCase()];
+
+			if (!enginePieceType) {
+				validMoves[i] = false;
+				continue;
+			}
+
+			// Use synchronous check for this piece type
+			validMoves[i] = hasValidMovesForPiece(chess, enginePieceType);
+		}
+
+		return validMoves;
+	}
+
+	// Helper function to check if a piece type has any valid moves
+	function hasValidMovesForPiece(chess, pieceType) {
+		// Convert to single character representation used by chess.js
+		const pieceChar = pieceType.charAt(0).toLowerCase();
+
+		// Get all legal moves from chess.js - these are already filtered for check
+		const moves = chess.moves({ verbose: true });
+
+		// Find moves specifically for this piece type
+		const validMoves = [];
+
+		for (const move of moves) {
+			const piece = chess.get(move.from);
+			if (piece && piece.type === pieceChar) {
+				validMoves.push(move);
+			}
+		}
+
+		// Add debug logging in check situations
+		if (chess.in_check() && validMoves.length > 0) {
+			console.log(`CHECK: ${pieceType} has ${validMoves.length} valid moves:`,
+				validMoves.map(m => `${m.from}-${m.to}`));
+		}
+
+		return validMoves.length > 0;
 	}
 
 	function showPassIndicator() {
@@ -1237,6 +1289,12 @@ const MetachessGame = (function () {
 				element.classList.add('game-over');
 			});
 
+		document.querySelectorAll('.piece-card').forEach(card => {
+			const clone = card.cloneNode(true);
+			clone.classList.add('game-over'); // Also add game-over class to cards
+			card.parentNode.replaceChild(clone, card);
+		});
+
 		// Update status message
 		updateStatusMessage(statusMessage);
 
@@ -1247,6 +1305,66 @@ const MetachessGame = (function () {
 		playSound('gameEnd');
 		return statusMessage;
 	}
+
+	function highlightKingInCheck() {
+		// Clear any existing check highlights
+		document.querySelectorAll('.square-55d63').forEach(square => {
+			square.classList.remove('check-highlight');
+		});
+
+		// Check if a king is in check
+		if (chess.in_check()) {
+			// Find the king's position
+			const color = chess.turn();
+			const squares = chess.board();
+
+			// Loop through the board to find the king of the current turn
+			for (let row = 0; row < 8; row++) {
+				for (let col = 0; col < 8; col++) {
+					const piece = squares[row][col];
+					if (piece && piece.type === 'k' && piece.color === color) {
+						// Convert to algebraic notation
+						const file = String.fromCharCode('a'.charCodeAt(0) + col);
+						const rank = 8 - row;
+						const square = file + rank;
+
+
+						// Add highlighting class to the square
+						document.querySelector(`.square-${square}`).classList.add('check-highlight');
+						return;
+					}
+				}
+			}
+		}
+	}
+	function checkForCheckmate() {
+		// Use chess.js built-in checkmate detection
+		if (chess.in_checkmate()) {
+			console.log(`CHECKMATE detected! ${currentTurn.toUpperCase()} loses`);
+
+			// The player whose turn it is has been checkmated
+			const losingPlayer = currentTurn;
+
+			// End the game with checkmate condition
+			gameOverWin(losingPlayer, 'checkmate');
+
+			// If in multiplayer, notify the other player
+			if (playerColor && MetachessSocket.isConnected()) {
+				MetachessSocket.sendGameOver({
+					gameId: MetachessSocket.gameId,
+					winner: losingPlayer === 'white' ? 'black' : 'white',
+					reason: 'checkmate'
+				});
+			}
+
+			return true;
+		}
+		return false;
+	}
+
+
+
+
 
 	// Add these testing helper methods
 	function setTimeControl(newTimeControl) {
