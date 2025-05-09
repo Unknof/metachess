@@ -32,31 +32,124 @@ header {
 	position: relative;
 }
 
-/* Deck info stays inline */
-.deck-info {
-	font-size: 10px;
-	padding: 2px 5px;
-	background: rgba(255, 255, 255, 0.8);
-	border-radius: 3px;
-	border: 1px solid #ddd;
-	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-	position: static;
-	top: auto;
-	left: auto;
-	margin: 0;
+/* Spacer for layout */
+.spacer {
+	flex: 0 0 auto;
+	width: 110px;
+	min-width: 110px;
+	max-width: 110px;
+	height: 36px;
+	line-height: 24px;
+	margin: 0 4px;
+	padding: 6px 12px;
+	box-sizing: border-box;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	text-align: center;
 }
 
-.opponent-info {
-	font-size: 10px;
-	padding: 2px 5px;
-	background: rgba(255, 255, 255, 0.8);
-	border-radius: 3px;
+/* Deck info - fixed size instead of stretching */
+.deck-info {
+	background: #4a90e2;
+	/* Keep the distinctive color */
+	color: white;
+	border: none;
+	border-radius: 20px;
+	/* Match other elements */
+	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+	padding: 6px 12px;
+	font-size: 11.25px;
+	/* 75% of original 15px */
+	font-weight: bold;
+	/* Match button weight */
+	text-align: center;
+	display: inline-block;
+	flex: 0 0 auto;
+	width: 110px;
+	min-width: 110px;
+	max-width: 110px;
+	height: 36px;
+	line-height: 24px;
+	margin: 0 4px;
+	transition: background 0.2s, box-shadow 0.2s;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* Make sure deck counter spans inherit text color */
+.deck-info .deck-count {
+	color: inherit;
+}
+
+/* Common styles for all interactive UI elements */
+.deck-info,
+.timer,
+.pass-button,
+.multiplayer-button,
+.spacer {
+	/* Fixed width instead of stretching */
+	width: 110px;
+	/* Fixed width that fits content */
+	min-width: 110px;
+	max-width: 110px;
+	flex: 0 0 auto;
+	/* Don't grow or shrink */
+
+	/* Consistent height */
+	height: 36px;
+	line-height: 24px;
+	/* For text vertical centering */
+
+	/* Consistent styling */
+	margin: 0 4px;
+	padding: 6px 12px;
+	box-sizing: border-box;
+
+	/* Text handling */
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	text-align: center;
+}
+
+/* Specific styling for buttons and interactive elements */
+.deck-info,
+.timer,
+.pass-button,
+.multiplayer-button {
+	background: var(--button-bg, #4a90e2);
+	color: white;
+	border: none;
+	border-radius: 20px;
+	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+	font-weight: bold;
+	transition: background 0.2s, box-shadow 0.2s;
+}
+
+/* Common styles for opponent and player info bars */
+.opponent-info,
+.player-info {
+	display: flex;
+	justify-content: center;
+	/* Center the fixed-width elements */
+	align-items: center;
+	width: 480px;
+	max-width: 100%;
+	padding: 6px 10px;
+	background: rgba(245, 245, 245, 0.9);
+	border-radius: 4px;
 	border: 1px solid #ddd;
-	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-	position: static;
-	top: auto;
-	left: auto;
-	margin: 0;
+	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+	margin: 4px 0;
+	gap: 10%;
+	/* Consistent spacing between elements */
+}
+
+/* Specific styling for opponent info bar */
+.opponent-info {
+	background: rgba(220, 220, 220, 0.9);
 }
 
 #white-player {
@@ -80,8 +173,11 @@ header {
 #board-container {
 	display: flex;
 	flex-direction: column;
-	margin: 0;
+	align-items: center;
+	margin: 0 auto;
 	padding: 0;
+	width: 100%;
+	max-width: 100%;
 }
 
 .timer-bar {
@@ -93,36 +189,67 @@ header {
 	background: #f0f0f0;
 }
 
+/* Update timer styling to match buttons better */
 .timer {
 	background: #4a90e2;
+	/* Keep the distinctive color */
 	color: white;
 	border: none;
-	border-radius: 3px;
-	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-	padding: 2px 10px;
-	font-size: 0.8em;
-	text-align: center;
-	margin: 2px 0;
-	display: inline-block;
-	min-width: 50px;
-}
-
-.timer.active {
-	background: #2a70c2;
-	box-shadow: 0 1px 5px rgba(0, 0, 0, 0.4);
-}
-
-/* Low time warning */
-.low-time {
-	color: #ff3b30;
+	border-radius: 20px;
+	/* Match other elements */
+	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+	padding: 6px 12px;
+	font-size: 15px;
+	/* Match button font size */
 	font-weight: bold;
+	/* Match button weight */
+	text-align: center;
+	display: inline-block;
+	flex: 0 0 auto;
+	width: 110px;
+	min-width: 110px;
+	max-width: 110px;
+	height: 36px;
+	line-height: 24px;
+	margin: 0 4px;
+	transition: background 0.2s, box-shadow 0.2s;
+}
+
+/* Active state for timer */
+.timer.active {
+	background: var(--button-hover, #3678c5);
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+	border: 1px solid rgba(255, 255, 255, 0.4);
+	transform: translateY(-1px);
+	transition: all 0.2s ease;
+}
+
+/* Low time warning styling */
+.timer.low-time {
+	background-color: #ff3b30;
+	color: white;
+	animation: timer-pulse 1s infinite;
+}
+
+@keyframes timer-pulse {
+	0% {
+		opacity: 1;
+	}
+
+	50% {
+		opacity: 0.7;
+	}
+
+	100% {
+		opacity: 1;
+	}
 }
 
 #chessboard {
 	width: 480px;
 	height: 480px;
 	border: 2px solid #333;
-	margin: 0 !important;
+	margin: 0 auto !important;
 }
 
 #chessboard.active-white {
@@ -159,7 +286,7 @@ header {
 /* Pass button next to deck info, not absolute */
 .pass-button {
 	position: static;
-	padding: 6px 18px;
+	padding: 6px 12px;
 	font-size: 15px;
 	font-weight: bold;
 	background: var(--button-bg, #4a90e2);
@@ -169,16 +296,27 @@ header {
 	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.10);
 	cursor: pointer;
 	transition: background 0.2s, box-shadow 0.2s;
-	width: auto;
-	min-width: 0;
-	max-width: 140px;
+	flex: 0 0 auto;
+	width: 110px;
+	min-width: 110px;
+	max-width: 110px;
+	height: 36px;
+	line-height: 24px;
+	margin: 0 4px;
 	letter-spacing: 1px;
-	margin-left: 0;
+}
+
+/* Hover effects for buttons */
+.pass-button:hover,
+.multiplayer-button:hover {
+	background: var(--button-hover, #3678c5);
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+	cursor: pointer;
 }
 
 .multiplayer-button {
 	position: static;
-	padding: 6px 18px;
+	padding: 6px 12px;
 	font-size: 15px;
 	font-weight: bold;
 	background: var(--button-bg, #4a90e2);
@@ -188,11 +326,14 @@ header {
 	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.10);
 	cursor: pointer;
 	transition: background 0.2s, box-shadow 0.2s;
-	width: auto;
-	min-width: 0;
-	max-width: 140px;
+	flex: 0 0 auto;
+	width: 110px;
+	min-width: 110px;
+	max-width: 110px;
+	height: 36px;
+	line-height: 24px;
+	margin: 0 4px;
 	letter-spacing: 1px;
-	margin-left: 0;
 }
 
 .pass-button:active,

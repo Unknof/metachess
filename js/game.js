@@ -1071,7 +1071,7 @@ const MetachessGame = (function () {
 		return `${minutes}:${secs.toString().padStart(2, '0')}`;
 	}
 
-	// Add this function to update the clock display
+	// Replace the updateClockDisplay function with this fixed version
 	function updateClockDisplay() {
 		document.getElementById('white-time').textContent = formatTime(timeControl.white);
 		document.getElementById('black-time').textContent = formatTime(timeControl.black);
@@ -1080,9 +1080,9 @@ const MetachessGame = (function () {
 		document.querySelector('.white-timer').classList.toggle('active', currentTurn === 'white');
 		document.querySelector('.black-timer').classList.toggle('active', currentTurn === 'black');
 
-		// Highlight low time (less than 30 seconds)
-		document.getElementById('white-time').classList.toggle('low-time', timeControl.white < 30);
-		document.getElementById('black-time').classList.toggle('low-time', timeControl.white < 30);
+		// Highlight low time (less than 15 seconds) - apply to timer div, not span
+		document.querySelector('.white-timer').classList.toggle('low-time', timeControl.white < 15);
+		document.querySelector('.black-timer').classList.toggle('low-time', timeControl.black < 15);
 	}
 
 	// Add this function to start the visual countdown timer

@@ -12,16 +12,6 @@
 	}
 
 	/* Distribute vertical space */
-	.opponent-info {
-		font-size: 9px;
-		padding: 4px;
-		flex: 0 0 auto;
-		order: 0;
-		background: rgba(240, 240, 240, 0.9);
-		text-align: center;
-		display: flex;
-		justify-content: space-between;
-	}
 
 	/* Board sizing and centering */
 	#board-container {
@@ -106,76 +96,6 @@
 		height: 100% !important;
 	}
 
-	/* Move time controls to the bottom and make more compact */
-	.time-controls {
-		padding: 2px 1px;
-		/* Reduced from 5px 2px */
-		justify-content: space-between;
-		margin: 1px 0;
-		/* Reduced from 2px 0 */
-		flex: 0 0 auto;
-		width: 100%;
-		max-width: 280px;
-		/* Match the board width */
-		margin-left: auto;
-		margin-right: auto;
-		background: #f0f0f0;
-	}
-
-	.timer {
-		font-size: 0.7em;
-		padding: 1px 8px;
-		min-width: 40px;
-	}
-
-	.pass-button {
-		padding: 1px 3px;
-		/* Reduced from 2px 4px */
-		height: 20px;
-		/* Reduced from 24px */
-		font-size: 9px;
-		/* Reduced from 10px */
-		width: 40px;
-		/* Set fixed width */
-		min-width: 40px;
-		/* Ensure minimum width */
-		margin: 0 1px;
-		/* Reduced from 0 2px */
-	}
-
-	.pass-button {
-		padding: 2px 8px;
-		height: auto;
-		font-size: 10px;
-		background: #4a90e2;
-		color: white;
-		border: none;
-		border-radius: 3px;
-		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-		position: static;
-		top: auto;
-		right: auto;
-	}
-
-	.multiplayer-button {
-		padding: 2px 8px;
-		height: auto;
-		font-size: 10px;
-		background: #4a90e2;
-		color: white;
-		border: none;
-		border-radius: 3px;
-		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-		position: static;
-		display: inline-block;
-		/* Explicitly ensure it's visible */
-		top: auto;
-		right: auto;
-	}
-
-	.time-controls.opponent {
-		display: none;
-	}
 
 	#board-container {
 		order: 2;
@@ -209,4 +129,27 @@
 		margin: 0;
 		order: 3;
 	}
+
+
+
+	.deck-info,
+	.timer,
+	.pass-button,
+	.multiplayer-button,
+	.spacer {
+		width: 90px;
+		/* Smaller on mobile */
+		min-width: 90px;
+		max-width: 90px;
+		height: 32px;
+		line-height: 20px;
+		padding: 6px 8px;
+		font-size: 12px;
+	}
+
+	.deck-info {
+		font-size: 11px;
+		/* Slightly smaller for deck info */
+	}
+
 }

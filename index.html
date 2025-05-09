@@ -18,29 +18,27 @@
 <body>
 	<div class="container">
 		<!-- Opponent info at top -->
-
-		<!-- Chess board with embedded timers -->
 		<div id="board-container">
-			<div class="timer-bar black-timer-bar">
+			<div class="opponent-info">
+				<div class="deck-info">
+					<span class="deck-count">Deck: <span id="opponent-deck-count">60</span></span>
+				</div>
 				<div class="timer black-timer">
 					<span id="black-time">3:00</span>
 				</div>
-				<div class="opponent-info">
-					<span class="deck-count">Opponent's Deck: <span id="opponent-deck-count">60</span></span>
-				</div>
+				<div class="spacer"></div> <!-- Empty div to maintain spacing where button would be -->
 			</div>
-
 			<div id="chessboard"></div>
-			<div class="timer-bar white-timer-bar">
-				<div class="timer white-timer">
-					<span id="white-time">3:00</span>
-				</div>
+			<div class="player-info">
 				<div class="deck-info">
 					<span class="deck-count">Deck: <span id="player-deck-count">60</span></span>
 				</div>
+				<div class="timer white-timer">
+					<span id="white-time">3:00</span>
+				</div>
 				<button id="pass-turn" class="pass-button">Pass</button>
 			</div>
-			<button id="multiplayer-btn" class="multiplayer-button">Multiplayer</button>
+			<button id="multiplayer-btn" class="multiplayer-button">Versus</button>
 		</div>
 
 		<!-- Player's cards -->
