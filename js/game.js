@@ -330,9 +330,7 @@ const MetachessGame = (function () {
 						// NEW: If a king was captured, declare the capturing player as winner
 						if (isKingCapture) {
 							const winner = currentTurn === 'white' ? 'WHITE' : 'BLACK';
-							updateStatusMessage(`${winner} captured the king and WINS!`);
-							gameOver = true;
-							disableAllControls();
+							gameOverWin(winner, 'king_capture');
 						}
 						// Remove the card from hand
 						removeCardFromHand(index);
