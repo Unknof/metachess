@@ -105,10 +105,7 @@ const MetachessGame = (function () {
 				checkForValidMoves(currentTurn).then(hasValidMove => {
 					if (!hasValidMove) {
 						const winner = currentTurn === 'white' ? 'BLACK' : 'WHITE';
-						updateStatusMessage(`${currentTurn.toUpperCase()} has no cards in deck and no valid moves! ${winner} WINS!`);
-						gameOver = true;
-						disableAllControls();
-						playSound('gameEnd');
+						gameOverWin(winner, "no Cards")
 					} else {
 						updateStatusMessage(`Cannot pass with empty deck. You must play a card.`);
 					}
@@ -326,11 +323,7 @@ const MetachessGame = (function () {
 							updateStatusMessage(`${winner} captured the king and WINS!`);
 							gameOver = true;
 							disableAllControls();
-						} else {
-							// Check game status if no king was captured
-							checkGameStatus();
 						}
-
 						// Remove the card from hand
 						removeCardFromHand(index);
 
@@ -426,6 +419,24 @@ const MetachessGame = (function () {
 		togglePlayerControls();
 		updateHands();
 
+		if (!playerColor) { // playerColor being null indicates singleplayer mode
+			//console.log("Singleplayer mode - checking for valid moves");
+			const emptyDeck = currentTurn === 'white' ? (whiteDeck.length === 0) : (blackDeck.length === 0);
+
+			if (emptyDeck) {
+				checkForValidMoves(currentTurn).then(hasValidMove => {
+					if (!hasValidMove) {
+						// Game over - no cards in deck and no valid moves
+						gameOverWin(currentTurn, 'no_cards');
+						return;
+					} else {
+						// Has valid moves - must play one
+						updateStatusMessage(`Cannot pass with empty deck. You must play a card.`);
+					}
+				});
+			}
+		}
+
 		// Update game status to show active game
 		if (playerColor) {
 			if (currentTurn === playerColor) {
@@ -439,55 +450,6 @@ const MetachessGame = (function () {
 
 		updateBoardBorder();
 	}
-
-	function checkGameStatus() {
-		// Check standard chess conditions
-		if (chess.in_checkmate()) {
-			const winner = chess.turn() === 'w' ? 'BLACK' : 'WHITE';
-			updateStatusMessage(`CHECKMATE! ${winner} wins!`);
-			gameOver = true;
-		} else if (chess.in_stalemate()) {
-			updateStatusMessage('STALEMATE! Game is a draw.');
-			gameOver = true;
-		} else if (chess.in_draw()) {
-			updateStatusMessage('DRAW! Game is a draw.');
-			gameOver = true;
-		} else if (chess.in_check()) {
-			const inCheck = chess.turn() === 'w' ? 'WHITE' : 'BLACK';
-			updateStatusMessage(`${inCheck} is in CHECK!`);
-		}
-
-		// NEW: Check for no playable cards win condition
-		if (!gameOver) {
-			const whiteHasCards = hasPlayableCards('white');
-			const blackHasCards = hasPlayableCards('black');
-
-			if (!whiteHasCards) {
-				updateStatusMessage('WHITE has no playable cards! BLACK wins!');
-				gameOver = true;
-			} else if (!blackHasCards) {
-				updateStatusMessage('BLACK has no playable cards! WHITE wins!');
-				gameOver = true;
-			}
-		}
-
-		// If game is over, disable all controls
-		if (gameOver) {
-			disableAllControls();
-
-			// Notify other player in multiplayer mode
-			if (playerColor && MetachessSocket.isConnected()) {
-				MetachessSocket.sendGameOver({
-					gameId: MetachessSocket.gameId,
-					winner: gameOver ? (currentTurn === 'white' ? 'black' : 'white') : null,
-					reason: document.getElementById('status-message').textContent
-				});
-			}
-		}
-
-		return gameOver;
-	}
-
 	// Add helper function to check if a player has playable cards
 	function hasPlayableCards(color) {
 		if (color === 'white') {
@@ -535,6 +497,7 @@ const MetachessGame = (function () {
 
 		// Check if we're in multiplayer mode
 		if (playerColor && MetachessSocket.getConnectionInfo().connected) {
+			console.log("Multiplayer mode detected, using multiplayer pass logic");
 			handlePassInMultiplayer();
 			return;
 		}
@@ -550,11 +513,7 @@ const MetachessGame = (function () {
 			checkForValidMoves(passingPlayer).then(hasValidMove => {
 				if (!hasValidMove) {
 					// Game over - no cards in deck and no valid moves
-					const winner = passingPlayer === 'white' ? 'BLACK' : 'WHITE';
-					updateStatusMessage(`${passingPlayer.toUpperCase()} has no cards in deck and no valid moves! ${winner} WINS!`);
-					gameOver = true;
-					disableAllControls();
-					playSound('gameEnd');
+					gameOverWin(passingPlayer, 'no_cards');
 				} else {
 					// Has valid moves - must play one
 					updateStatusMessage(`Cannot pass with empty deck. You must play a card.`);
@@ -562,6 +521,27 @@ const MetachessGame = (function () {
 			});
 			return;
 		}
+
+		// Time control handling
+		const passTime = Date.now();
+
+		// Start clock on first pass if not already started
+		if (!timeControl.started) {
+			timeControl.started = true;
+			startClock();
+		}
+		// Add increment time (like in server)
+		const INCREMENT_SECONDS = 2; // 2 second increment
+		timeControl[passingPlayer] += INCREMENT_SECONDS;
+
+		// Check for timeout
+		if (timeControl[passingPlayer] <= 0) {
+			timeControl[passingPlayer] = 0;
+			gameOverWin(passingPlayer, 'time_out');
+			return;
+		}
+
+		updateClockDisplay();
 
 		// Regular pass logic continues here...
 		// Clear the passing player's hand (discard all cards)
@@ -600,9 +580,6 @@ const MetachessGame = (function () {
 
 		// Switch turn (updates current player and UI elements)
 		switchTurn();
-
-		// Show pass indicator
-		showPassIndicator();
 
 		// Status message
 		updateStatusMessage(
@@ -938,9 +915,6 @@ const MetachessGame = (function () {
 						reason: `${winner} captured the king`
 					});
 				}
-			} else {
-				// Only check other game status if no king was captured
-				checkGameStatus();
 			}
 		}
 	}
@@ -1104,19 +1078,13 @@ const MetachessGame = (function () {
 				clearInterval(timeControl.timerId);
 				timeControl.timerId = null;
 				timeControl.white = 0;
-				gameOver = true;
-				console.log("White ran out of time!");
-				updateStatusMessage("Time's up! BLACK WINS!");
-				disableAllControls();
+				gameOverWin('black', 'time_out');
 			} else if (currentTurn === 'black' && timeControl.black <= 0) {
 				// Black ran out of time
 				clearInterval(timeControl.timerId);
 				timeControl.timerId = null;
 				timeControl.black = 0;
-				gameOver = true;
-				console.log("Black ran out of time!");
-				updateStatusMessage("Time's up! WHITE WINS!");
-				disableAllControls();
+				gameOverWin('white', 'time_out');
 			}
 		}, 100); // Update every 100ms for smoother display
 	}
@@ -1226,6 +1194,58 @@ const MetachessGame = (function () {
 				passIndicator.style.visibility = 'hidden';
 			}, 1000);
 		}, 50);
+	}
+
+	function gameOverWin(playerColor, winCondition) {
+		// Set game over state
+		gameOver = true;
+
+		// Stop the clock
+		if (timeControl.timerId) {
+			clearInterval(timeControl.timerId);
+			timeControl.timerId = null;
+		}
+
+		// Determine winner based on player who lost
+		const winner = playerColor === 'white' ? 'BLACK' : 'WHITE';
+
+		// Create appropriate message based on win condition
+		let statusMessage;
+		switch (winCondition) {
+			case 'no_cards':
+				statusMessage = `${playerColor.toUpperCase()} has no cards in deck and no valid moves! ${winner} WINS!`;
+				break;
+			case 'king_capture':
+				statusMessage = `${winner} captured the king and WINS!`;
+				break;
+			case 'checkmate':
+				statusMessage = `CHECKMATE! ${winner} WINS!`;
+				break;
+			case 'time_out':
+				statusMessage = `${playerColor.toUpperCase()} ran out of time! ${winner} WINS!`;
+				break;
+			case 'resignation':
+				statusMessage = `${playerColor.toUpperCase()} resigned. ${winner} WINS!`;
+				break;
+			default:
+				statusMessage = `Game over! ${winner} WINS!`;
+		}
+
+		// Apply gray style to all control elements
+		document.querySelectorAll('.deck-info, .timer, .pass-button')
+			.forEach(element => {
+				element.classList.add('game-over');
+			});
+
+		// Update status message
+		updateStatusMessage(statusMessage);
+
+		// Disable controls
+		disableAllControls();
+
+		// Play game end sound
+		playSound('gameEnd');
+		return statusMessage;
 	}
 
 	// Add these testing helper methods

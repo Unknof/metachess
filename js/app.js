@@ -13,14 +13,6 @@ document.addEventListener('DOMContentLoaded', function () {
 	// Initialize game with the chess and board instances
 	MetachessGame.init(chess, board);
 
-	// Add pass button handler
-	const passButton = document.getElementById('pass-turn');
-	if (passButton) {
-		passButton.addEventListener('click', function () {
-			MetachessGame.passTurn();
-		});
-	}
-
 	// Copy game link button
 	document.getElementById('copy-link').addEventListener('click', function () {
 		const linkInput = document.getElementById('game-link');
