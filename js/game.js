@@ -442,19 +442,10 @@ const MetachessGame = (function () {
 		updateHands();
 
 		if (!playerColor) { // playerColor being null indicates singleplayer mode
-			//console.log("Singleplayer mode - checking for valid moves");
-			const emptyDeck = currentTurn === 'white' ? (whiteDeck.length === 0) : (blackDeck.length === 0);
 
-			if (emptyDeck) {
-				const hasValidMove = checkForValidMoves(currentTurn);
-				if (!hasValidMove) {
-					// Game over - no cards in deck and no valid moves
-					gameOverWin(currentTurn, 'no_cards');
-					return;
-				} else {
-					// Has valid moves - must play one
-					updateStatusMessage(`Cannot pass with empty deck. You must play a card.`);
-				}
+			if (!checkForValidMoves(currentTurn)) {
+				attemptRedrawsUntilValidMove(currentTurn);
+				return;
 			}
 
 		}
@@ -848,6 +839,35 @@ const MetachessGame = (function () {
 
 			// Synchronize with server's game state
 			synchronizeGameState(data.currentTurn);
+		});
+
+		// Add this to setupSocketListeners function
+		MetachessSocket.on('redraw_update', (data) => {
+			console.log('Redraw update received:', data);
+
+			// Update deck counts
+			whiteDeck = Array(data.whiteDeck).fill('?');
+			blackDeck = Array(data.blackDeck).fill('?');
+
+			// Update hands based on player color
+			if (playerColor === 'white') {
+				whiteHand = data.whiteHand;
+			} else if (playerColor === 'black') {
+				blackHand = data.blackHand;
+			}
+
+			// Update UI
+			updateDecks();
+			updateHands();
+
+			// Show animation or message
+			const isCurrentPlayer = data.redrawingPlayer === playerColor;
+			const playerText = isCurrentPlayer ? 'You have' : 'Opponent has';
+
+			updateStatusMessage(`${playerText} no valid moves. Redrawing...`);
+
+
+
 		});
 	}
 
@@ -1382,6 +1402,62 @@ const MetachessGame = (function () {
 		return false;
 	}
 
+	function resetGame() {
+		// Stop the clock if it's running
+		if (timeControl.timerId) {
+			clearInterval(timeControl.timerId);
+			timeControl.timerId = null;
+		}
+
+		// Reset game state variables
+		gameOver = false;
+		currentTurn = 'white';
+		selectedCard = null;
+		selectedSquare = null;
+		playerColor = null; // Reset to single player mode
+
+		// Reset time control
+		timeControl = {
+			white: 180,  // 3 minutes in seconds
+			black: 180,
+			started: false,
+			timerId: null
+		};
+
+		// Reset the chess board to starting position
+		chess.reset();
+		board.position('start');
+		board.orientation('white'); // Reset orientation to white
+
+		// Clear any move highlighting
+		updateLastMoveHighlighting(null, null);
+
+		// Initialize new decks with appropriate case
+		whiteDeck = MetachessDeck.createDeck();
+		blackDeck = MetachessDeck.createDeck().map(piece => piece.toUpperCase());
+
+		// Draw initial hands
+		whiteHand = MetachessDeck.drawCards(whiteDeck, 5);
+		blackHand = MetachessDeck.drawCards(blackDeck, 5);
+
+		// Update UI
+		updateDecks();
+		updateHands();
+		updateClockDisplay();
+		updateBoardBorder();
+
+		// Enable controls for current player
+		togglePlayerControls();
+
+		// Update status message
+		updateStatusMessage("New game started");
+
+		// Remove game-over styling from elements
+		document.querySelectorAll('.game-over').forEach(element => {
+			element.classList.remove('game-over');
+		});
+	}
+
 	// Add these testing helper methods
 	function setTimeControl(newTimeControl) {
 		timeControl = newTimeControl;
@@ -1434,6 +1510,14 @@ const MetachessGame = (function () {
 			}, 50);
 		});
 
+		document.getElementById('new-game-btn').addEventListener('click', function () {
+			// Hide the modal
+			gameOptionsModal.style.display = 'none';
+
+			// Reset the game
+			resetGame();
+		});
+
 		document.getElementById('concede-button').addEventListener('click', function () {
 			gameOptionsModal.style.display = 'none';
 			concedeConfirmModal.style.display = 'flex';
@@ -1481,10 +1565,74 @@ const MetachessGame = (function () {
 		});
 	}
 
+	function attemptRedrawsUntilValidMove(player) {
+		// Helper function to check if any card in hand has valid moves
+		const hasValidMove = checkForValidMoves(player);
+
+		// If player already has valid moves, nothing to do
+		if (hasValidMove) return;
+
+		// Get the player's deck and hand references
+		const deck = player === 'white' ? whiteDeck : blackDeck;
+		const hand = player === 'white' ? whiteHand : blackHand;
+
+		// If deck is empty and no valid moves, player loses
+		if (deck.length === 0) {
+			gameOverWin(player, 'no_cards');
+			return;
+		}
+
+		// Show animation or message about redrawing
+		updateStatusMessage(`${player.toUpperCase()} has no valid moves. Redrawing cards...`);
+
+		// Discard current hand and prepare for redrawing
+		if (player === 'white') {
+			whiteHand = [];
+		} else {
+			blackHand = [];
+		}
+
+		// Update UI to show empty hand
+		updateHands();
+
+		// Add delay before redrawing
+		setTimeout(() => {
+			// Draw new cards
+			if (player === 'white') {
+				whiteHand = MetachessDeck.drawCards(whiteDeck, Math.min(5, whiteDeck.length));
+			} else {
+				blackHand = MetachessDeck.drawCards(blackDeck, Math.min(5, blackDeck.length));
+			}
+
+			// Update UI
+			updateDecks();
+			updateHands();
+
+			// Play a sound
+			// Check if the new hand has valid moves
+			const nowHasValidMove = checkForValidMoves(player);
+
+			if (!nowHasValidMove) {
+				// If still no valid moves and deck not empty, try again after delay
+				if ((player === 'white' && whiteDeck.length > 0) ||
+					(player === 'black' && blackDeck.length > 0)) {
+					setTimeout(() => attemptRedrawsUntilValidMove(player), 1000);
+				} else {
+					// No more cards in deck and still no valid moves
+					gameOverWin(player, 'no_cards');
+				}
+			} else {
+				// Valid move found, update status
+				updateStatusMessage(`${player.toUpperCase()} found a playable card`);
+			}
+		}, 1000);
+	}
+
 	return {
 		init,
 		passTurn,
 		initMultiplayer,
+		resetGame,
 		// New methods for testing
 		getCurrentTurn() {
 			return currentTurn;

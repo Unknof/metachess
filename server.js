@@ -32,12 +32,12 @@ function createDeck(color) {
 	// Standard MetaChess deck distribution
 	// You can adjust these numbers based on your game balance
 	const distribution = {
-		'p': 50, // pawns
-		'n': 18,  // knights
-		'b': 18,  // bishops
-		'r': 14,  // rooks
-		'q': 12,  // queens
-		'k': 8   // kings
+		'p': 45,
+		'n': 18,
+		'b': 18,
+		'r': 9,
+		'q': 8,
+		'k': 6
 	};
 
 	for (const [piece, count] of Object.entries(distribution)) {
@@ -411,6 +411,84 @@ wss.on('connection', (socket) => {
 							}));
 						}
 					});
+					break;
+
+				case 'check_valid_moves':
+					const gameCheck = games[data.gameId];
+					if (!gameCheck) return;
+
+					const checkingPlayer = data.player;
+
+					// Verify it's actually this player's turn
+					if (gameCheck.currentTurn !== checkingPlayer) {
+						socket.send(JSON.stringify({
+							type: 'error',
+							message: 'Not your turn to check moves'
+						}));
+						return;
+					}
+
+					// Function to check if player has any valid moves
+					const checkPlayerMoves = (player, game) => {
+						// This would require implementing chess move validation logic on the server
+						// For now, we'll trust the client's assessment and handle the redraw
+						return false; // Assume no valid moves to test the redraw
+					};
+
+					// Handle case where player has no valid moves
+					const handleNoValidMoves = () => {
+						// Get the player's hand and deck
+						const hand = checkingPlayer === 'white' ? gameCheck.whiteHand : gameCheck.blackHand;
+						const deck = checkingPlayer === 'white' ? gameCheck.whiteDeck : gameCheck.blackDeck;
+
+						// If deck is empty, player loses
+						if (deck.length === 0) {
+							// Notify both players
+							gameCheck.players.forEach(client => {
+								if (client.readyState === WebSocket.OPEN) {
+									client.send(JSON.stringify({
+										type: 'game_over',
+										loser: checkingPlayer,
+										reason: 'no_valid_moves'
+									}));
+								}
+							});
+							return;
+						}
+
+						// Clear hand
+						if (checkingPlayer === 'white') {
+							gameCheck.whiteHand = [];
+						} else {
+							gameCheck.blackHand = [];
+						}
+
+						// Draw new cards
+						if (checkingPlayer === 'white') {
+							gameCheck.whiteHand = drawCards(gameCheck.whiteDeck, 5);
+						} else {
+							gameCheck.blackHand = drawCards(gameCheck.blackDeck, 5);
+						}
+
+						// Notify both players about the redraw
+						gameCheck.players.forEach(client => {
+							if (client.readyState === WebSocket.OPEN) {
+								const playerColor = client.playerColor;
+
+								client.send(JSON.stringify({
+									type: 'redraw_update',
+									redrawingPlayer: checkingPlayer,
+									whiteDeck: gameCheck.whiteDeck.length,
+									whiteHand: playerColor === 'white' ? gameCheck.whiteHand : [],
+									blackDeck: gameCheck.blackDeck.length,
+									blackHand: playerColor === 'black' ? gameCheck.blackHand : []
+								}));
+							}
+						});
+					};
+
+					// Check if player has valid moves, if not trigger redraw
+					handleNoValidMoves();
 					break;
 
 				case 'heartbeat':

@@ -2,11 +2,11 @@
 const MetachessDeck = (function () {
 	// Piece types and their default counts
 	const defaultDeckConfig = {
-		'p': 50,
+		'p': 45,
 		'n': 18,
 		'b': 18,
-		'r': 16,
-		'q': 12,
+		'r': 9,
+		'q': 8,
 		'k': 6
 	};
 
