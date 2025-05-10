@@ -157,6 +157,7 @@ const MetachessSocket = (function () {
 			type: 'game_over',
 			gameId: data.gameId,
 			winner: data.winner,
+			loser: data.loser || (data.winner === 'white' ? 'black' : 'white'),
 			reason: data.reason
 		}));
 
@@ -170,6 +171,23 @@ const MetachessSocket = (function () {
 		});
 	}
 
+	function sendCheckValidMoves(data) {
+		if (!socket || socket.readyState !== WebSocket.OPEN) {
+			console.error("Cannot send check valid moves: Socket not connected");
+			return false;
+		}
+
+		console.log("SENDING check_valid_moves:", data);
+		socket.send(JSON.stringify({
+			type: 'check_valid_moves',
+			gameId: data.gameId,
+			player: data.player,
+			fen: data.fen
+		}));
+
+		return true;
+	}
+
 	return {
 		init,
 		on,
@@ -180,7 +198,8 @@ const MetachessSocket = (function () {
 		getConnectionInfo,
 		sendPass,
 		reconnect,
-		sendGameOver,  // Add this new method
+		sendGameOver,
+		sendCheckValidMoves,
 		isConnected() {
 			return socket && socket.readyState === WebSocket.OPEN;
 		},

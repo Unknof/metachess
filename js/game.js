@@ -441,13 +441,17 @@ const MetachessGame = (function () {
 		togglePlayerControls();
 		updateHands();
 
-		if (!playerColor) { // playerColor being null indicates singleplayer mode
-
-			if (!checkForValidMoves(currentTurn)) {
+		if (!checkForValidMoves(currentTurn)) {
+			if (!playerColor) {
+				// Single player mode - handle locally
 				attemptRedrawsUntilValidMove(currentTurn);
 				return;
+			} else if (currentTurn === playerColor) {
+				// Multiplayer mode - need to request redraw from server
+				console.log("No valid moves for player:", currentTurn, " Requesting redraw");
+				handleMultiplayerRedraw();
+				return;
 			}
-
 		}
 
 
@@ -501,6 +505,28 @@ const MetachessGame = (function () {
 		updateStatusMessage("Passing turn...");
 
 		// Don't change any state here - wait for the server's pass_update message
+	}
+
+	function handleMultiplayerRedraw() {
+		// Show status message
+		updateStatusMessage("You have no valid moves. Requesting redraw...");
+
+		// Disable controls while processing
+		disableAllControls();
+
+		console.log("Sending redraw request to server with data:", {
+			player: playerColor,
+			gameId: MetachessSocket.gameId,
+			fen: chess.fen()
+		});
+		// Send redraw request to server with current board state
+		MetachessSocket.sendCheckValidMoves({
+			player: playerColor,
+			gameId: MetachessSocket.gameId,
+			fen: chess.fen() // Send the current board state
+		});
+
+		// The server will respond with redraw_update which will be handled by existing listeners
 	}
 
 	// Update the existing pass functions to use multiplayer when appropriate
@@ -860,14 +886,65 @@ const MetachessGame = (function () {
 			updateDecks();
 			updateHands();
 
-			// Show animation or message
 			const isCurrentPlayer = data.redrawingPlayer === playerColor;
 			const playerText = isCurrentPlayer ? 'You have' : 'Opponent has';
 
-			updateStatusMessage(`${playerText} no valid moves. Redrawing...`);
+			updateStatusMessage(`${playerText} no valid moves. Redrawing cards...`);
 
+			// If we need to check again (with new hand)
+			if (data.needToCheckAgain && isCurrentPlayer) {
+				// Give a slight delay for UI to update and show the new hand
+				setTimeout(() => {
+					if (!checkForValidMoves(playerColor)) {
+						// Still no valid moves, request another redraw
+						handleMultiplayerRedraw();
+					} else {
+						// We now have valid moves, enable controls
+						togglePlayerControls();
+						updateStatusMessage("Found a playable card!");
+					}
+				}, 1000);
+			} else if (isCurrentPlayer) {
+				togglePlayerControls();
+			}
+		});
+		MetachessSocket.on('game_over', (data) => {
+			console.log('Game over notification received:', data);
 
+			// Handle the game over state based on reason
+			switch (data.reason) {
+				case 'checkmate':
+					// Determine the losing player (opposite of winner)
+					const losingPlayer = data.winner === 'white' ? 'black' : 'white';
+					gameOverWin(losingPlayer, 'checkmate');
+					break;
 
+				case 'king_capture':
+					// Determine the losing player (opposite of winner)
+					const loserKC = data.winner === 'white' ? 'black' : 'white';
+					gameOverWin(loserKC, 'king_capture');
+					break;
+
+				case 'resignation':
+					// The player who resigned is already in the data
+					gameOverWin(data.loser || (data.winner === 'white' ? 'black' : 'white'), 'resignation');
+					break;
+
+				case 'no_valid_moves':
+					// The player with no valid moves is the loser
+					gameOverWin(data.loser, 'no_cards');
+					break;
+
+				case 'time_out':
+					// The player who timed out is already identified
+					gameOverWin(data.loser, 'time_out');
+					break;
+
+				default:
+					// Generic game over handling
+					const losingDefault = data.winner === 'white' ? 'black' : 'white';
+					gameOverWin(losingDefault, data.reason || 'default');
+			}
 		});
 	}
 
@@ -892,7 +969,7 @@ const MetachessGame = (function () {
 		if (board && color === 'black') {
 			board.orientation('black');
 		}
-
+		updateClockOrientation();
 		// Determine which hand is controlled by the player
 		playerHand = playerColor === 'white' ? whiteHand : blackHand;
 		opponentHand = playerColor === 'white' ? blackHand : whiteHand;
@@ -909,6 +986,47 @@ const MetachessGame = (function () {
 
 		// Update the hands to hide opponent cards
 		updateHands();
+	}
+
+	function updateClockOrientation() {
+		// Get timer containers
+		const timerBar = document.querySelector('.timer-bar');
+		const opponentInfo = document.querySelector('.opponent-info');
+		const playerInfo = document.querySelector('.player-info');
+
+		// Add visual labels for multiplayer
+		if (playerColor) {
+			// Get timer label elements (add these in HTML or create them here)
+			const whiteLabel = document.querySelector('.white-timer .timer-label') ||
+				createTimerLabel('.white-timer', 'white');
+			const blackLabel = document.querySelector('.black-timer .timer-label') ||
+				createTimerLabel('.black-timer', 'black');
+
+			if (playerColor === 'black') {
+				whiteLabel.textContent = 'Opponent';
+				blackLabel.textContent = 'You';
+			} else {
+				whiteLabel.textContent = 'You';
+				blackLabel.textContent = 'Opponent';
+			}
+		}
+
+		console.log("Updating clock orientation for player color:", playerColor);
+		updateClockDisplay();
+	}
+
+	// Helper function to create timer labels if they don't exist
+	function createTimerLabel(timerSelector, colorName) {
+		const timer = document.querySelector(timerSelector);
+		if (!timer) return null;
+
+		const label = document.createElement('div');
+		label.className = 'timer-label';
+		label.style.fontSize = '10px';
+		label.style.opacity = '0.8';
+		timer.appendChild(label);
+
+		return label;
 	}
 
 	function applyOpponentMove(moveData) {
@@ -1041,7 +1159,13 @@ const MetachessGame = (function () {
 		// Update UI
 		togglePlayerControls();
 		updateHands();
+		updateClockOrientation();
 
+		if (playerColor && currentTurn === playerColor && !checkForValidMoves(playerColor)) {
+			console.log("No valid moves after synchronizeGameState, requesting redraw");
+			handleMultiplayerRedraw();
+			return;
+		}
 		// Update game status
 		if (playerColor) {
 			updateStatusMessage(
@@ -1088,16 +1212,32 @@ const MetachessGame = (function () {
 
 	// Replace the updateClockDisplay function with this fixed version
 	function updateClockDisplay() {
-		document.getElementById('white-time').textContent = formatTime(timeControl.white);
-		document.getElementById('black-time').textContent = formatTime(timeControl.black);
+		if (playerColor === 'black') {
+			// When playing as black, swap the timer displays visually
+			// This keeps the DOM structure intact but displays opposite times
+			document.getElementById('white-time').textContent = formatTime(timeControl.black);
+			document.getElementById('black-time').textContent = formatTime(timeControl.white);
 
-		// Highlight active player's clock
-		document.querySelector('.white-timer').classList.toggle('active', currentTurn === 'white');
-		document.querySelector('.black-timer').classList.toggle('active', currentTurn === 'black');
+			// Highlight active player's clock (visually reversed for black's perspective)
+			document.querySelector('.white-timer').classList.toggle('active', currentTurn === 'black');
+			document.querySelector('.black-timer').classList.toggle('active', currentTurn === 'white');
 
-		// Highlight low time (less than 15 seconds) - apply to timer div, not span
-		document.querySelector('.white-timer').classList.toggle('low-time', timeControl.white < 15);
-		document.querySelector('.black-timer').classList.toggle('low-time', timeControl.black < 15);
+			// Highlight low time warning (visually reversed)
+			document.querySelector('.white-timer').classList.toggle('low-time', timeControl.black < 15);
+			document.querySelector('.black-timer').classList.toggle('low-time', timeControl.white < 15);
+		} else {
+			// Standard behavior for white player
+			document.getElementById('white-time').textContent = formatTime(timeControl.white);
+			document.getElementById('black-time').textContent = formatTime(timeControl.black);
+
+			// Standard highlighting
+			document.querySelector('.white-timer').classList.toggle('active', currentTurn === 'white');
+			document.querySelector('.black-timer').classList.toggle('active', currentTurn === 'black');
+
+			// Standard low time warning
+			document.querySelector('.white-timer').classList.toggle('low-time', timeControl.white < 15);
+			document.querySelector('.black-timer').classList.toggle('low-time', timeControl.black < 15);
+		}
 	}
 
 	// Add this function to start the visual countdown timer
@@ -1384,15 +1524,18 @@ const MetachessGame = (function () {
 
 			// The player whose turn it is has been checkmated
 			const losingPlayer = currentTurn;
+			const winningPlayer = losingPlayer === 'white' ? 'black' : 'white';
 
 			// End the game with checkmate condition
 			gameOverWin(losingPlayer, 'checkmate');
 
 			// If in multiplayer, notify the other player
 			if (playerColor && MetachessSocket.isConnected()) {
+				console.log("Sending checkmate game over notification");
 				MetachessSocket.sendGameOver({
 					gameId: MetachessSocket.gameId,
-					winner: losingPlayer === 'white' ? 'black' : 'white',
+					winner: winningPlayer,
+					loser: losingPlayer,
 					reason: 'checkmate'
 				});
 			}
@@ -1428,6 +1571,7 @@ const MetachessGame = (function () {
 		chess.reset();
 		board.position('start');
 		board.orientation('white'); // Reset orientation to white
+		updateClockOrientation();
 
 		// Clear any move highlighting
 		updateLastMoveHighlighting(null, null);

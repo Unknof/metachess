@@ -5,6 +5,7 @@ const http = require('http');
 const WebSocket = require('ws');
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
+const { Chess } = require('./lib/chess.js');
 
 const DEFAULT_TIME_SECONDS = 180; // 3 minutes
 const INCREMENT_SECONDS = 2;      // 2 second increment
@@ -414,13 +415,19 @@ wss.on('connection', (socket) => {
 					break;
 
 				case 'check_valid_moves':
+					console.log("RECEIVED check_valid_moves", data);
 					const gameCheck = games[data.gameId];
-					if (!gameCheck) return;
+					if (!gameCheck) {
+						console.log("EXIT: Game not found", data.gameId);
+						return;
+					}
 
 					const checkingPlayer = data.player;
+					const currentFen = data.fen; // Client needs to send the current board state
 
 					// Verify it's actually this player's turn
 					if (gameCheck.currentTurn !== checkingPlayer) {
+						console.log("EXIT: Not player's turn", checkingPlayer, gameCheck.currentTurn);
 						socket.send(JSON.stringify({
 							type: 'error',
 							message: 'Not your turn to check moves'
@@ -429,66 +436,152 @@ wss.on('connection', (socket) => {
 					}
 
 					// Function to check if player has any valid moves
-					const checkPlayerMoves = (player, game) => {
-						// This would require implementing chess move validation logic on the server
-						// For now, we'll trust the client's assessment and handle the redraw
-						return false; // Assume no valid moves to test the redraw
+					const checkPlayerMoves = (player, game, fen) => {
+						// Get the player's hand
+						const hand = player === 'white' ? game.whiteHand : game.blackHand;
+
+						// No cards in hand means no valid moves
+						if (hand.length === 0) return false;
+
+						// Create a chess instance with the current board state
+						const chess = new Chess(fen);
+
+						// Define piece type mapping
+						const pieceTypeMap = {
+							'p': 'pawn',
+							'n': 'knight',
+							'b': 'bishop',
+							'r': 'rook',
+							'q': 'queen',
+							'k': 'king'
+						};
+
+						// Try each card to see if it has valid moves
+						for (const card of hand) {
+							const pieceType = card;
+							const enginePieceType = pieceTypeMap[pieceType.toLowerCase()];
+
+							if (!enginePieceType) continue;
+
+							// Check if this piece has valid moves
+							if (hasValidMovesForPiece(chess, enginePieceType)) {
+								return true;
+							}
+						}
+
+						// No valid moves found for any card
+						return false;
 					};
 
-					// Handle case where player has no valid moves
-					const handleNoValidMoves = () => {
-						// Get the player's hand and deck
-						const hand = checkingPlayer === 'white' ? gameCheck.whiteHand : gameCheck.blackHand;
-						const deck = checkingPlayer === 'white' ? gameCheck.whiteDeck : gameCheck.blackDeck;
+					// Helper function to check if a piece type has any valid moves
+					function hasValidMovesForPiece(chess, pieceType) {
+						// Find the single-character representation for this piece type
+						let pieceChar;
 
-						// If deck is empty, player loses
-						if (deck.length === 0) {
-							// Notify both players
-							gameCheck.players.forEach(client => {
-								if (client.readyState === WebSocket.OPEN) {
-									client.send(JSON.stringify({
-										type: 'game_over',
-										loser: checkingPlayer,
-										reason: 'no_valid_moves'
-									}));
+						// If it's already a single character (like 'n'), use it
+						if (pieceType.length === 1) {
+							pieceChar = pieceType.toLowerCase();
+						} else {
+							// Otherwise, reverse-lookup in the pieceTypeMap
+							const pieceTypeMap = {
+								'p': 'pawn',
+								'n': 'knight',
+								'b': 'bishop',
+								'r': 'rook',
+								'q': 'queen',
+								'k': 'king'
+							};
+
+							for (const [char, name] of Object.entries(pieceTypeMap)) {
+								if (name === pieceType.toLowerCase()) {
+									pieceChar = char;
+									break;
 								}
-							});
-							return;
+							}
 						}
 
-						// Clear hand
-						if (checkingPlayer === 'white') {
-							gameCheck.whiteHand = [];
-						} else {
-							gameCheck.blackHand = [];
+						// If no valid mapping found, log error and return false
+						if (!pieceChar) {
+							console.error("Invalid piece type:", pieceType);
+							return false;
 						}
 
-						// Draw new cards
-						if (checkingPlayer === 'white') {
-							gameCheck.whiteHand = drawCards(gameCheck.whiteDeck, 5);
-						} else {
-							gameCheck.blackHand = drawCards(gameCheck.blackDeck, 5);
+						// Check all moves and filter for the specific piece type
+						const moves = chess.moves({ verbose: true });
+						const validMoves = [];
+
+						for (const move of moves) {
+							const piece = chess.get(move.from);
+							if (piece && piece.type === pieceChar) {
+								validMoves.push(move);
+							}
 						}
 
-						// Notify both players about the redraw
+						return validMoves.length > 0;
+					}
+
+					// Check if player has valid moves
+					const hasValidMoves = checkPlayerMoves(checkingPlayer, gameCheck, currentFen);
+
+					// If player has valid moves, just let them know
+					if (hasValidMoves) {
+						socket.send(JSON.stringify({
+							type: 'valid_moves_check',
+							hasValidMoves: true
+						}));
+						return;
+					}
+
+					// Handle case where player has no valid moves
+					// Get the player's hand and deck
+					const hand = checkingPlayer === 'white' ? gameCheck.whiteHand : gameCheck.blackHand;
+					const deck = checkingPlayer === 'white' ? gameCheck.whiteDeck : gameCheck.blackDeck;
+
+					// If deck is empty, player loses
+					if (deck.length === 0) {
+						// Notify both players
 						gameCheck.players.forEach(client => {
 							if (client.readyState === WebSocket.OPEN) {
-								const playerColor = client.playerColor;
-
 								client.send(JSON.stringify({
-									type: 'redraw_update',
-									redrawingPlayer: checkingPlayer,
-									whiteDeck: gameCheck.whiteDeck.length,
-									whiteHand: playerColor === 'white' ? gameCheck.whiteHand : [],
-									blackDeck: gameCheck.blackDeck.length,
-									blackHand: playerColor === 'black' ? gameCheck.blackHand : []
+									type: 'game_over',
+									loser: checkingPlayer,
+									reason: 'no_valid_moves'
 								}));
 							}
 						});
-					};
+						return;
+					}
 
-					// Check if player has valid moves, if not trigger redraw
-					handleNoValidMoves();
+					// Clear hand
+					if (checkingPlayer === 'white') {
+						gameCheck.whiteHand = [];
+					} else {
+						gameCheck.blackHand = [];
+					}
+					console.log("drawing new cards");
+					// Draw new cards
+					if (checkingPlayer === 'white') {
+						gameCheck.whiteHand = drawCards(gameCheck.whiteDeck, Math.min(5, gameCheck.whiteDeck.length));
+					} else {
+						gameCheck.blackHand = drawCards(gameCheck.blackDeck, Math.min(5, gameCheck.blackDeck.length));
+					}
+
+					// Notify both players about the redraw
+					gameCheck.players.forEach(client => {
+						if (client.readyState === WebSocket.OPEN) {
+							const playerColor = client.playerColor;
+
+							client.send(JSON.stringify({
+								type: 'redraw_update',
+								redrawingPlayer: checkingPlayer,
+								whiteDeck: gameCheck.whiteDeck.length,
+								whiteHand: playerColor === 'white' ? gameCheck.whiteHand : [],
+								blackDeck: gameCheck.blackDeck.length,
+								blackHand: playerColor === 'black' ? gameCheck.blackHand : [],
+								needToCheckAgain: true // Tell client to check again after receiving new hand
+							}));
+						}
+					});
 					break;
 
 				case 'heartbeat':

@@ -449,3 +449,29 @@ header {
 .danger:hover {
 	background-color: #a32a2a;
 }
+
+/* Timer orientation when playing as black */
+.timer-bar.reversed {
+	flex-direction: row-reverse;
+}
+
+.opponent-info.reversed,
+.player-info.reversed {
+	flex-direction: row-reverse;
+}
+
+/* For mobile layout */
+@media (max-width: 768px) {
+	.timer-bar.reversed .white-timer {
+		order: 2;
+	}
+
+	.timer-bar.reversed .black-timer {
+		order: 1;
+	}
+
+	/* Ensure spacing remains correct */
+	.timer-bar.reversed .spacer {
+		order: 0;
+	}
+}
