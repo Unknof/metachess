@@ -65,6 +65,8 @@ const MetachessGame = (function () {
 		whiteDeck = MetachessDeck.createDeck();
 		blackDeck = MetachessDeck.createDeck().map(piece => piece.toUpperCase());
 
+		createMaterialDisplay();
+
 		console.log("Decks created:", whiteDeck.length, blackDeck.length);
 
 		// Draw initial hands
@@ -320,6 +322,7 @@ const MetachessGame = (function () {
 						// Update board display
 						board.position(chess.fen());
 						highlightKingInCheck(); // Add this line
+						updateMaterialDisplay();
 
 						if (move) {
 							playSound(isCapture ? 'capture' : 'move');
@@ -525,6 +528,8 @@ const MetachessGame = (function () {
 			gameId: MetachessSocket.gameId,
 			fen: chess.fen() // Send the current board state
 		});
+
+		updateHands(); // Update hands to reflect the current state
 
 		// The server will respond with redraw_update which will be handled by existing listeners
 	}
@@ -946,6 +951,24 @@ const MetachessGame = (function () {
 					gameOverWin(losingDefault, data.reason || 'default');
 			}
 		});
+
+		MetachessSocket.on('time_update', (data) => {
+			console.log('Time update received:', data);
+
+			// Update time control information
+			timeControl.white = data.white;
+			timeControl.black = data.black;
+
+			// Make sure current turn is in sync with server
+			if (currentTurn !== data.currentTurn) {
+				currentTurn = data.currentTurn;
+				updateBoardBorder();
+				togglePlayerControls();
+			}
+
+			// Update the clock display
+			updateClockDisplay();
+		});
 	}
 
 	// Update your showMultiplayerOptions function
@@ -1051,6 +1074,7 @@ const MetachessGame = (function () {
 			// Update board display
 			board.position(chess.fen());
 			highlightKingInCheck(); // Add this line
+			updateMaterialDisplay()
 
 			playSound(isCapture ? 'capture' : 'move');
 
@@ -1150,6 +1174,8 @@ const MetachessGame = (function () {
 			board.position(chess.fen());
 		}
 
+		updateMaterialDisplay();
+
 		// If using Stockfish, reset it with the new position
 		if (engineInitialized && window.engine) {
 			window.engine.postMessage('position fen ' + chess.fen());
@@ -1241,11 +1267,26 @@ const MetachessGame = (function () {
 	}
 
 	// Add this function to start the visual countdown timer
+	// Update your startClock function:
 	function startClock() {
+		// Set the started flag regardless of mode
+		timeControl.started = true;
+
+		// In multiplayer, we don't need a local timer - just mark it as started
+		if (playerColor && MetachessSocket.isConnected()) {
+			console.log("Multiplayer mode: using server time only");
+			if (timeControl.timerId) {
+				clearInterval(timeControl.timerId);
+				timeControl.timerId = null;
+			}
+			return;
+		}
+
+		// In single-player mode, use local timer as before
 		if (timeControl.timerId) clearInterval(timeControl.timerId);
 
-		timeControl.started = true;
 		timeControl.timerId = setInterval(() => {
+			// Existing timer code for single-player mode
 			if (currentTurn === 'white') {
 				timeControl.white = Math.max(0, timeControl.white - 0.1);
 			} else {
@@ -1253,19 +1294,19 @@ const MetachessGame = (function () {
 			}
 			updateClockDisplay();
 
-			// Add this time-out check
+			// Existing timeout checks
 			if (currentTurn === 'white' && timeControl.white <= 0) {
 				// White ran out of time
 				clearInterval(timeControl.timerId);
 				timeControl.timerId = null;
 				timeControl.white = 0;
-				gameOverWin('black', 'time_out');
+				gameOverWin('white', 'time_out');
 			} else if (currentTurn === 'black' && timeControl.black <= 0) {
 				// Black ran out of time
 				clearInterval(timeControl.timerId);
 				timeControl.timerId = null;
 				timeControl.black = 0;
-				gameOverWin('white', 'time_out');
+				gameOverWin('black', 'time_out');
 			}
 		}, 100); // Update every 100ms for smoother display
 	}
@@ -1572,7 +1613,7 @@ const MetachessGame = (function () {
 		board.position('start');
 		board.orientation('white'); // Reset orientation to white
 		updateClockOrientation();
-
+		updateMaterialDisplay();
 		// Clear any move highlighting
 		updateLastMoveHighlighting(null, null);
 
@@ -1770,6 +1811,204 @@ const MetachessGame = (function () {
 				updateStatusMessage(`${player.toUpperCase()} found a playable card`);
 			}
 		}, 1000);
+	}
+
+	function createMaterialDisplay() {
+		// Instead of creating new elements, just make sure they're correctly set up
+		const topMaterial = document.querySelector('.top-material');
+		const bottomMaterial = document.querySelector('.bottom-material');
+
+		if (!topMaterial || !bottomMaterial) {
+			console.error("Material difference containers not found in the DOM");
+			return;
+		}
+
+		// Clear any previous content
+		topMaterial.innerHTML = '';
+		bottomMaterial.innerHTML = '';
+
+		// Add placeholder spacers to maintain height when empty
+		const topSpacer = document.createElement('div');
+		topSpacer.className = 'material-spacer';
+		topMaterial.appendChild(topSpacer);
+
+		const bottomSpacer = document.createElement('div');
+		bottomSpacer.className = 'material-spacer';
+		bottomMaterial.appendChild(bottomSpacer);
+
+		// Initial update
+		updateMaterialDisplay();
+	}
+
+	// Function to calculate material difference
+	// Function to calculate material difference
+	function calculateMaterialDifference() {
+		const pieceValues = {
+			'p': 1,   // pawn
+			'n': 3,   // knight
+			'b': 3,   // bishop
+			'r': 5,   // rook
+			'q': 9,   // queen
+			'k': 0    // king (not counted in material difference)
+		};
+
+		let whiteMaterial = 0;
+		let blackMaterial = 0;
+
+		// Track the pieces for each side
+		const whitePieces = { p: 0, n: 0, b: 0, r: 0, q: 0 };
+		const blackPieces = { p: 0, n: 0, b: 0, r: 0, q: 0 };
+
+		// Get the current board position
+		const board = chess.board();
+
+		// Iterate through the board and add up material
+		for (let row = 0; row < 8; row++) {
+			for (let col = 0; col < 8; col++) {
+				const square = board[row][col];
+				if (square) {
+					const pieceType = square.type.toLowerCase();
+					const value = pieceValues[pieceType];
+
+					if (square.color === 'w') {
+						whiteMaterial += value;
+						if (pieceType !== 'k') whitePieces[pieceType]++;
+					} else {
+						blackMaterial += value;
+						if (pieceType !== 'k') blackPieces[pieceType]++;
+					}
+				}
+			}
+		}
+
+		// Calculate the pieces that make up the advantage
+		const whitePieceAdvantage = {};
+		const blackPieceAdvantage = {};
+
+		// Compare piece counts
+		['p', 'n', 'b', 'r', 'q'].forEach(pieceType => {
+			const diff = whitePieces[pieceType] - blackPieces[pieceType];
+			if (diff > 0) {
+				whitePieceAdvantage[pieceType] = diff;
+			} else if (diff < 0) {
+				blackPieceAdvantage[pieceType] = -diff;
+			}
+		});
+
+		return {
+			difference: whiteMaterial - blackMaterial,
+			whiteMaterial,
+			blackMaterial,
+			whitePieceAdvantage,
+			blackPieceAdvantage
+		};
+	}
+
+	// Function to update the material difference display
+	// Function to update the material difference display
+	function updateMaterialDisplay() {
+
+
+		const materialInfo = calculateMaterialDifference();
+		const difference = materialInfo.difference;
+
+		const topMaterial = document.querySelector('.top-material');
+		const bottomMaterial = document.querySelector('.bottom-material');
+
+		if (!topMaterial || !bottomMaterial) return;
+
+		// Clear previous classes and content
+		topMaterial.classList.remove('advantage-white', 'advantage-black');
+		bottomMaterial.classList.remove('advantage-white', 'advantage-black');
+		topMaterial.innerHTML = '';
+		bottomMaterial.innerHTML = '';
+
+		// If no material difference, show nothing but maintain the space
+		if (difference === 0) {
+			// Add spacers to reserve space
+			const topSpacer = document.createElement('div');
+			topSpacer.className = 'material-spacer';
+			topMaterial.appendChild(topSpacer);
+
+			const bottomSpacer = document.createElement('div');
+			bottomSpacer.className = 'material-spacer';
+			bottomMaterial.appendChild(bottomSpacer);
+			return;
+		}
+
+		console.log("Material difference updated:", difference);
+		// Function to create the piece display
+		const createPieceDisplay = (pieceAdvantage, color) => {
+			const container = document.createElement('div');
+			container.className = 'piece-symbols';
+
+			// Order of pieces for display (highest value first)
+			const pieceOrder = ['q', 'r', 'b', 'n', 'p'];
+
+			pieceOrder.forEach(pieceType => {
+				const count = pieceAdvantage[pieceType] || 0;
+				for (let i = 0; i < count; i++) {
+					const pieceColor = color === 'white' ? 'w' : 'b';
+					const pieceChar = pieceType.toUpperCase();
+					const lichessPiece = `${pieceColor}${pieceChar}`;
+					const pieceUrl = `https://raw.githubusercontent.com/lichess-org/lila/master/public/piece/cburnett/${lichessPiece}.svg`;
+
+					const pieceImg = document.createElement('img');
+					pieceImg.src = pieceUrl;
+					pieceImg.alt = `${color} ${pieceType}`;
+					pieceImg.className = 'piece-image';
+
+					container.appendChild(pieceImg);
+				}
+			});
+
+			return container;
+		};
+
+		// Handle the case where the board is flipped (player is black)
+		if (playerColor === 'black') {
+			// Board is flipped (black at bottom)
+			if (difference > 0) {
+				// White is ahead
+				const pieceDisplay = createPieceDisplay(materialInfo.whitePieceAdvantage, 'white');
+				topMaterial.appendChild(pieceDisplay);
+				topMaterial.classList.add('advantage-white');
+				// Add spacer to bottom to keep height
+				const bottomSpacer = document.createElement('div');
+				bottomSpacer.className = 'material-spacer';
+				bottomMaterial.appendChild(bottomSpacer);
+			} else if (difference < 0) {
+				// Black is ahead
+				const pieceDisplay = createPieceDisplay(materialInfo.blackPieceAdvantage, 'black');
+				bottomMaterial.appendChild(pieceDisplay);
+				bottomMaterial.classList.add('advantage-black');
+				// Add spacer to top to keep height
+				const topSpacer = document.createElement('div');
+				topSpacer.className = 'material-spacer';
+				topMaterial.appendChild(topSpacer);
+			}
+		} else {
+			// Default orientation (white at bottom)
+			if (difference > 0) {
+				// White is ahead
+				const pieceDisplay = createPieceDisplay(materialInfo.whitePieceAdvantage, 'white');
+				bottomMaterial.appendChild(pieceDisplay);
+				bottomMaterial.classList.add('advantage-white');
+				// Add spacer to top to keep height
+				const topSpacer = document.createElement('div');
+				topSpacer.className = 'material-spacer';
+				topMaterial.appendChild(topSpacer);
+			} else if (difference < 0) {
+				// Black is ahead
+				const pieceDisplay = createPieceDisplay(materialInfo.blackPieceAdvantage, 'black');
+				topMaterial.appendChild(pieceDisplay);
+				topMaterial.classList.add('advantage-black');
+				// Add spacer to bottom to keep height
+				const bottomSpacer = document.createElement('div');
+				bottomSpacer.className = 'material-spacer';
+				bottomMaterial.appendChild(bottomSpacer);
+			}
+		}
 	}
 
 	return {

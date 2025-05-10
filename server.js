@@ -24,8 +24,71 @@ const server = http.createServer(app);
 
 // Create WebSocket server using the HTTP server
 const wss = new WebSocket.Server({ server });
+// Add near the top of your file, after other constants
+const TIME_UPDATE_INTERVAL = 1000; // Send updates every second
+const activeTimers = new Set();
 
-// Helper functions for deck and card management
+// Add a function to start/manage the game timers
+function startGameTimer(gameId) {
+	if (activeTimers.has(gameId)) return; // Timer already running
+
+	activeTimers.add(gameId);
+	console.log(`Starting server-side timer for game ${gameId}`);
+
+	const gameTimerId = setInterval(() => {
+		const game = games[gameId];
+		if (!game || game.players.length < 2) {
+			clearInterval(gameTimerId);
+			activeTimers.delete(gameId);
+			return;
+		}
+
+		// If game is ongoing and clock has started
+		if (!game.gameOver && game.timeControl.started) {
+			const now = Date.now();
+			const elapsed = (now - game.timeControl.lastMoveTime) / 1000;
+			game.timeControl.lastMoveTime = now;
+
+			// Deduct time from current player
+			game.timeControl[game.currentTurn] -= elapsed;
+
+			// Check for timeout
+			if (game.timeControl[game.currentTurn] <= 0) {
+				game.timeControl[game.currentTurn] = 0;
+				const winner = game.currentTurn === 'white' ? 'black' : 'white';
+
+				// Notify both players
+				game.players.forEach(client => {
+					if (client.readyState === WebSocket.OPEN) {
+						client.send(JSON.stringify({
+							type: 'time_out',
+							player: game.currentTurn,
+							winner: winner
+						}));
+					}
+				});
+
+				// Stop the timer
+				clearInterval(gameTimerId);
+				activeTimers.delete(gameId);
+				game.gameOver = true;
+				return;
+			}
+
+			// Send time update to both clients
+			game.players.forEach(client => {
+				if (client.readyState === WebSocket.OPEN) {
+					client.send(JSON.stringify({
+						type: 'time_update',
+						white: game.timeControl.white,
+						black: game.timeControl.black,
+						currentTurn: game.currentTurn
+					}));
+				}
+			});
+		}
+	}, TIME_UPDATE_INTERVAL);
+}
 
 function createDeck(color) {
 	const deck = [];
@@ -190,41 +253,16 @@ wss.on('connection', (socket) => {
 					if (!gameMove.timeControl.started && playerColor === 'white') {
 						gameMove.timeControl.started = true;
 						gameMove.timeControl.lastMoveTime = currentTime;
+						startGameTimer(data.gameId);
 					}
-					// Process time for ongoing game
-					else if (gameMove.timeControl.started) {
-						const elapsedSeconds = (currentTime - gameMove.timeControl.lastMoveTime) / 1000;
 
-						// Deduct time from current player's clock
-						gameMove.timeControl[playerColor] -= elapsedSeconds;
 
-						// Check for timeout
-						if (gameMove.timeControl[playerColor] <= 0) {
-							gameMove.timeControl[playerColor] = 0;
+					// Add increment
+					gameMove.timeControl[playerColor] += INCREMENT_SECONDS;
 
-							// Determine winner
-							const winner = playerColor === 'white' ? 'black' : 'white';
+					// Update last move timestamp
+					gameMove.timeControl.lastMoveTime = currentTime;
 
-							// Notify both players of timeout
-							gameMove.players.forEach(client => {
-								if (client.readyState === WebSocket.OPEN) {
-									client.send(JSON.stringify({
-										type: 'time_out',
-										player: playerColor,
-										winner: winner
-									}));
-								}
-							});
-
-							return; // Stop processing move
-						}
-
-						// Add increment
-						gameMove.timeControl[playerColor] += INCREMENT_SECONDS;
-
-						// Update last move timestamp
-						gameMove.timeControl.lastMoveTime = currentTime;
-					}
 
 					if (playerColor === 'white') {
 						// Remove the card from hand
@@ -323,41 +361,17 @@ wss.on('connection', (socket) => {
 					if (!gamePass.timeControl.started && passingPlayer === 'white') {
 						gamePass.timeControl.started = true;
 						gamePass.timeControl.lastMoveTime = passTime;
+						startGameTimer(data.gameId);
 					}
 					// Process time for ongoing game
-					else if (gamePass.timeControl.started) {
-						const elapsedSeconds = (passTime - gamePass.timeControl.lastMoveTime) / 1000;
 
-						// Deduct time from current player's clock
-						gamePass.timeControl[passingPlayer] -= elapsedSeconds;
 
-						// Check for timeout
-						if (gamePass.timeControl[passingPlayer] <= 0) {
-							gamePass.timeControl[passingPlayer] = 0;
+					// Add increment
+					gamePass.timeControl[passingPlayer] += INCREMENT_SECONDS;
 
-							// Determine winner
-							const winner = passingPlayer === 'white' ? 'black' : 'white';
+					// Update last move timestamp
+					gamePass.timeControl.lastMoveTime = passTime;
 
-							// Notify both players of timeout
-							gamePass.players.forEach(client => {
-								if (client.readyState === WebSocket.OPEN) {
-									client.send(JSON.stringify({
-										type: 'time_out',
-										player: passingPlayer,
-										winner: winner
-									}));
-								}
-							});
-
-							return; // Stop processing move
-						}
-
-						// Add increment
-						gamePass.timeControl[passingPlayer] += INCREMENT_SECONDS;
-
-						// Update last move timestamp
-						gamePass.timeControl.lastMoveTime = passTime;
-					}
 
 					// Clear the passing player's hand (discard all cards)
 					if (passingPlayer === 'white') {

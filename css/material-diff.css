@@ -1,0 +1,58 @@
+/* Material difference display */
+.material-difference {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	height: 28px;
+	min-height: 28px;
+	/* Ensure minimum height even when empty */
+	background-color: rgba(0, 0, 0, 0.05);
+	border-radius: 4px;
+	margin: 4px 0;
+	font-weight: bold;
+	font-size: 16px;
+	width: 480px;
+	/* Match chessboard width */
+	max-width: 100%;
+	position: relative;
+}
+
+/* Add this to maintain height even when empty */
+.material-spacer {
+	height: 20px;
+	width: 100%;
+}
+
+.material-difference.advantage-white {
+	color: #4a90e2;
+}
+
+.material-difference.advantage-black {
+	color: #333;
+}
+
+.material-difference .piece-symbols {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.material-difference .piece-image {
+	width: 24px !important;
+	height: 24px !important;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+	.material-difference {
+		height: 24px;
+		min-height: 24px;
+		font-size: 14px;
+		margin: 2px 0;
+	}
+
+	.material-difference .piece-image {
+		width: 24px !important;
+		height: 24px !important;
+	}
+}
