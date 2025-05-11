@@ -10,6 +10,13 @@ const MetachessSocket = (function () {
 		`wss://${window.location.host}`) {
 		return new Promise((resolve, reject) => {
 			try {
+				// Get player ID from localStorage
+				const playerId = localStorage.getItem('metachess_player_id') ||
+					'player_' + Math.random().toString(36).substring(2, 15);
+
+				// Store it in case it's new
+				localStorage.setItem('metachess_player_id', playerId);
+
 				// Close existing socket if it exists
 				if (socket) {
 					socket.close();
@@ -35,12 +42,19 @@ const MetachessSocket = (function () {
 						connectionStatus.className = 'connection-status connected';
 					}
 					startHeartbeat();
+
+					// Send player ID immediately upon connection
+					socket.send(JSON.stringify({
+						type: 'identify_player',
+						playerId: playerId
+					}));
+
 					resolve(true);
 				};
 
 				socket.onmessage = (event) => {
 					const data = JSON.parse(event.data);
-					console.log('Message received:', data);
+					//console.log('Message received:', data);
 
 					if (callbacks[data.type]) {
 						callbacks[data.type](data);
