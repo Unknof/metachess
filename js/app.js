@@ -1,7 +1,7 @@
 import { MetachessGame } from './game.js';
 import { MetachessSocket } from './socket.js';
 import * as Multiplayer from './game_modules/multiplayer.js';
-
+import { setChessAndBoard } from './game.js';
 
 
 console.log('App version running on port: ' + window.location.port);
@@ -13,9 +13,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
 	// Initialize the chessboard
 	const { chess, board } = MetachessBoard.init('chessboard');
+	setChessAndBoard({ chess, board });
 
 	MetachessSocket.setChessInstance(chess);
-	MetachessGame.init(chess, board);
 
 	const menuButton = document.getElementById('menu-button');
 	if (menuButton) {
@@ -119,7 +119,7 @@ document.addEventListener('DOMContentLoaded', function () {
 	if (newGameBtn) {
 		newGameBtn.addEventListener('click', function () {
 			document.getElementById('game-options-modal').style.display = 'none';
-			MetachessGame.resetGame();
+			MetachessGame.init(chess, board);
 		});
 	}
 

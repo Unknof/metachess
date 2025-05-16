@@ -699,20 +699,37 @@ wss.on('connection', (socket) => {
 						chess.move(move);
 					}
 					const fen = chess.fen();
+					let reconnectPayload;
+					if (reconnectingPlayerColor === 'white') {
+						reconnectPayload = {
+							type: 'reconnection_successful',
+							gameId: data.gameId,
+							playerColor: 'white',
+							currentTurn: gameToReconnect.currentTurn,
+							fen,
+							whiteDeck: gameToReconnect.whiteDeck, // full array
+							whiteHand: gameToReconnect.whiteHand,
+							blackDeck: gameToReconnect.blackDeck.length, // only size
+							blackHand: [],
+							timeControl: gameToReconnect.timeControl
+						};
+					} else {
+						reconnectPayload = {
+							type: 'reconnection_successful',
+							gameId: data.gameId,
+							playerColor: 'black',
+							currentTurn: gameToReconnect.currentTurn,
+							fen,
+							whiteDeck: gameToReconnect.whiteDeck.length, // only size
+							whiteHand: [],
+							blackDeck: gameToReconnect.blackDeck, // full array
+							blackHand: gameToReconnect.blackHand,
+							timeControl: gameToReconnect.timeControl
+						};
+					}
 
-					// Send the current game state to the reconnected player
-					socket.send(JSON.stringify({
-						type: 'reconnection_successful',
-						gameId: data.gameId,
-						playerColor: reconnectingPlayerColor,
-						currentTurn: gameToReconnect.currentTurn,
-						fen, // <-- Use reconstructed FEN
-						whiteDeck: gameToReconnect.whiteDeck.length,
-						whiteHand: reconnectingPlayerColor === 'white' ? gameToReconnect.whiteHand : [],
-						blackDeck: gameToReconnect.blackDeck.length,
-						blackHand: reconnectingPlayerColor === 'black' ? gameToReconnect.blackHand : [],
-						timeControl: gameToReconnect.timeControl
-					}));
+					//console.log('Sending reconnection payload:', JSON.stringify(reconnectPayload, null, 2));
+					socket.send(JSON.stringify(reconnectPayload));
 
 					if (gameToReconnect.removeTimeout) {
 						clearTimeout(gameToReconnect.removeTimeout);

@@ -2,6 +2,9 @@
  * Socket event listeners for MetaChess multiplayer functionality
  */
 
+import { MetachessGame } from '../game.js';
+import { getChess, getBoard } from '../game.js';
+
 export function setupSocketListeners({
 	// Network
 	MetachessSocket,
@@ -14,8 +17,6 @@ export function setupSocketListeners({
 	blackHand,
 	timeControl,
 	currentTurn,
-	chess,
-	board,
 
 	// Functions needed
 	applyOpponentMove,
@@ -35,22 +36,23 @@ export function setupSocketListeners({
 	startClock,
 	highlightKingInCheck
 }) {
+	let chess = getChess();
+	let board = getBoard();
 	// Listen for game created event
 	MetachessSocket.on('game_created', (data) => {
-
+		MetachessGame.multiplayerInit(chess, board, data);
 		const newUrl = new URL(window.location);
 		newUrl.searchParams.set('game', data.gameId);
 		window.history.pushState({}, '', newUrl);
-
 
 		console.log('Game created:', data);
 		MetachessSocket.setGameInfo(data.gameId, data.playerColor);
 		playerColor = data.playerColor;  // This is important - set playerColor immediately
 
 		// Set initial deck and hand state
-		whiteDeck = Array(data.whiteDeck).fill('?');
+		whiteDeck = Array.isArray(data.whiteDeck) ? data.whiteDeck : Array(data.whiteDeck).fill('?');
 		whiteHand = data.whiteHand;
-		blackDeck = Array(data.blackDeck).fill('?');
+		blackDeck = Array.isArray(data.blackDeck) ? data.blackDeck : Array(data.blackDeck).fill('?');
 		blackHand = data.blackHand;
 
 		// Update UI
@@ -96,6 +98,7 @@ export function setupSocketListeners({
 		console.log('Game joined:', data);
 
 		// Set game ID and player color
+		MetachessGame.multiplayerInit(chess, board, data);
 		MetachessSocket.setGameInfo(data.gameId, data.playerColor);
 		playerColor = data.playerColor;
 
@@ -108,8 +111,8 @@ export function setupSocketListeners({
 		document.getElementById('waiting-modal').style.display = 'none';
 
 		// Set initial deck and hand state
-		whiteDeck = Array(data.whiteDeck).fill('?');
-		blackDeck = Array(data.blackDeck).fill('?');
+		whiteDeck = Array.isArray(data.whiteDeck) ? data.whiteDeck : Array(data.whiteDeck).fill('?');
+		blackDeck = Array.isArray(data.blackDeck) ? data.blackDeck : Array(data.blackDeck).fill('?');
 
 		// Update hands based on player color
 		if (playerColor === 'white') {
@@ -140,8 +143,8 @@ export function setupSocketListeners({
 		applyOpponentMove(data.move);
 
 		// Update deck and hand information
-		whiteDeck = Array(data.whiteDeck).fill('?');
-		blackDeck = Array(data.blackDeck).fill('?');
+		whiteDeck = Array.isArray(data.whiteDeck) ? data.whiteDeck : Array(data.whiteDeck).fill('?');
+		blackDeck = Array.isArray(data.blackDeck) ? data.blackDeck : Array(data.blackDeck).fill('?');
 
 		// Update hands based on player color
 		if (playerColor === 'white') {
@@ -173,8 +176,8 @@ export function setupSocketListeners({
 		console.log('Pass update received:', data);
 
 		// Update decks and hands
-		whiteDeck = Array(data.whiteDeck).fill('?');
-		blackDeck = Array(data.blackDeck).fill('?');
+		whiteDeck = Array.isArray(data.whiteDeck) ? data.whiteDeck : Array(data.whiteDeck).fill('?');
+		blackDeck = Array.isArray(data.blackDeck) ? data.blackDeck : Array(data.blackDeck).fill('?');
 
 		// Update hands based on player color
 		if (playerColor === 'white') {
@@ -237,8 +240,8 @@ export function setupSocketListeners({
 		console.log('Hand update received:', data);
 
 		// Update deck counts and hands
-		whiteDeck = Array(data.whiteDeck).fill('?');
-		blackDeck = Array(data.blackDeck).fill('?');
+		whiteDeck = Array.isArray(data.whiteDeck) ? data.whiteDeck : Array(data.whiteDeck).fill('?');
+		blackDeck = Array.isArray(data.blackDeck) ? data.blackDeck : Array(data.blackDeck).fill('?');
 
 		// Update hands based on player color
 		if (playerColor === 'white') {
@@ -256,8 +259,8 @@ export function setupSocketListeners({
 		console.log('Redraw update received:', data);
 
 		// Update deck counts
-		whiteDeck = Array(data.whiteDeck).fill('?');
-		blackDeck = Array(data.blackDeck).fill('?');
+		whiteDeck = Array.isArray(data.whiteDeck) ? data.whiteDeck : Array(data.whiteDeck).fill('?');
+		blackDeck = Array.isArray(data.blackDeck) ? data.blackDeck : Array(data.blackDeck).fill('?');
 
 		// Update hands based on player color
 		if (playerColor === 'white') {
@@ -352,24 +355,35 @@ export function setupSocketListeners({
 
 	// Add handler for reconnection_successful event
 	MetachessSocket.on('reconnection_successful', (data) => {
+		MetachessGame.multiplayerInit(chess, board, data);
 		console.log('Reconnection successful, restoring game state:', data);
 
-		// Set game info
+		console.log('Assigning deck/hand from server:', {
+			whiteDeck: data.whiteDeck,
+			whiteHand: data.whiteHand,
+			blackDeck: data.blackDeck,
+			blackHand: data.blackHand,
+			playerColor
+		});
+
 		MetachessSocket.setGameInfo(data.gameId, data.playerColor);
 		playerColor = data.playerColor;
 
 		// Restore deck and hand state
-		whiteDeck = Array(data.whiteDeck).fill('?');
-		blackDeck = Array(data.blackDeck).fill('?');
+		whiteDeck = Array.isArray(data.whiteDeck) ? data.whiteDeck : Array(data.whiteDeck).fill('?');
+		blackDeck = Array.isArray(data.blackDeck) ? data.blackDeck : Array(data.blackDeck).fill('?');
 
+		// Update hands based on player color
 		// Update hands based on player color
 		if (playerColor === 'white') {
 			whiteHand = data.whiteHand || [];
-			blackHand = []; // Don't know opponent's hand
+			blackHand = [];
 		} else {
-			whiteHand = []; // Don't know opponent's hand
+			whiteHand = [];
 			blackHand = data.blackHand || [];
 		}
+
+		console.log('After hand assignment:', { whiteHand, blackHand });
 
 		// Clear any open modals
 		document.querySelectorAll('.modal').forEach(modal => {

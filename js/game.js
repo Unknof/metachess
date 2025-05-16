@@ -2,6 +2,17 @@ import { MetachessSocket } from './socket.js';
 import * as Multiplayer from './game_modules/multiplayer.js';
 import { setupSocketListeners } from './game_modules/socketListeners.js';
 
+let board = null;
+let chess = null;
+
+export function setChessAndBoard(instances) {
+	chess = instances.chess;
+	board = instances.board;
+}
+
+export function getChess() { return chess; }
+export function getBoard() { return board; }
+
 
 const MetachessGame = (function () {
 	// Game state
@@ -15,6 +26,7 @@ const MetachessGame = (function () {
 	let gameOver = false;
 	let board = null;
 	let chess = null;
+
 	let selectedCard = null;
 	let engineInitialized = false;
 	let playerColor = null; // 'white', 'black', or null (for local play)
@@ -40,20 +52,44 @@ const MetachessGame = (function () {
 		win: new Audio('sounds/win.mp3')
 	};
 
-	function setupMobileCardContainers() {
-		const cardContainers = document.querySelectorAll('.card-container');
 
-		cardContainers.forEach(container => {
-			// Remove or comment out this block to stop adding the swipe indicator
-			/*
-			if (window.innerWidth <= 768) {
-				const scrollIndicator = document.createElement('div');
-				scrollIndicator.className = 'scroll-indicator';
-				scrollIndicator.innerHTML = '&laquo; swipe &raquo;';
-				container.parentNode.insertBefore(scrollIndicator, container);
-			 }
-			*/
-		});
+	function multiplayerInit(chessInstance, boardInstance, serverState) {
+		chess = chessInstance;
+		board = boardInstance;
+
+		console.log("Initializing multiplayer game...");
+
+		// 1. Clear any move highlighting
+		updateLastMoveHighlighting(null, null);
+
+		// 2. Assign decks and hands from server state
+		whiteDeck = Array.isArray(serverState.whiteDeck) ? serverState.whiteDeck : Array(serverState.whiteDeck).fill('?');
+		blackDeck = Array.isArray(serverState.blackDeck) ? serverState.blackDeck : Array(serverState.blackDeck).fill('?');
+		whiteHand = serverState.whiteHand || [];
+		blackHand = serverState.blackHand || [];
+
+		// 3. Initialize material display
+		createMaterialDisplay();
+
+		// 4. Update UI to show deck counts
+		updateDecks();
+
+		// 5. Initialize Stockfish engine
+		engineInitialized = MetachessEngine.init();
+		if (!engineInitialized) {
+			updateStatusMessage("Warning: Stockfish engine not available");
+		}
+
+		// 6. Enable controls for the current player
+		togglePlayerControls();
+
+		// 7. Update hand UI to show the player's cards
+		updateHands();
+
+		// 8. Flip board if player is black
+		if (playerColor === 'black' && board) {
+			board.orientation('black');
+		}
 	}
 
 	// Add button initialization to the init function
@@ -98,7 +134,6 @@ const MetachessGame = (function () {
 		// Start the clock
 		//startClock();
 
-		setupMobileCardContainers();
 
 		// Setup pass button handler for both colors
 		document.getElementById('pass-turn').addEventListener('click', function () {
@@ -1583,6 +1618,7 @@ const MetachessGame = (function () {
 
 
 		init,
+		multiplayerInit,
 		passTurn,
 		resetGame,
 		gameOverWin,
