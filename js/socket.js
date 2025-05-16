@@ -130,7 +130,8 @@ const MetachessSocket = (function () {
 		if (!socket || socket.readyState !== WebSocket.OPEN) return false;
 
 		socket.send(JSON.stringify({
-			type: 'create_game'
+			type: 'create_game',
+			playerId: localStorage.getItem('metachess_player_id')
 		}));
 
 		return true;
@@ -224,10 +225,15 @@ const MetachessSocket = (function () {
 			return false;
 		});
 	}
-
 	function reconnectToGame(gameId, playerColor) {
-
 		console.log(`Attempting to reconnect to game ${gameId}`);
+
+		// Restore local state immediately so outgoing messages have correct info
+		if (gameId) {
+			// Set local state so sendMove, sendPass, etc. use correct IDs
+			setGameInfo(gameId, playerColor || null);
+		}
+
 		return reconnect().then(success => {
 			if (!success) {
 				return false;

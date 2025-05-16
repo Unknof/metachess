@@ -17,6 +17,20 @@ document.addEventListener('DOMContentLoaded', function () {
 	MetachessSocket.setChessInstance(chess);
 	MetachessGame.init(chess, board);
 
+	const menuButton = document.getElementById('menu-button');
+	if (menuButton) {
+		menuButton.addEventListener('click', function () {
+			document.getElementById('game-options-modal').style.display = 'flex';
+		});
+	}
+
+	document.querySelectorAll('.close-modal').forEach(button => {
+		button.addEventListener('click', function () {
+			document.getElementById('game-options-modal').style.display = 'none';
+			document.getElementById('concede-confirm-modal').style.display = 'none';
+		});
+	});
+
 	// Copy game link button
 	document.getElementById('copy-link').addEventListener('click', function () {
 		const linkInput = document.getElementById('game-link');
@@ -45,6 +59,8 @@ document.addEventListener('DOMContentLoaded', function () {
 		const freshBtn = document.getElementById('multiplayer-btn');
 		freshBtn.addEventListener('click', function (e) {
 			e.preventDefault();
+			//document.getElementById('menu-button').style.display = 'none';
+			document.getElementById('game-options-modal').style.display = 'none';
 			//console.log('Multiplayer button clicked - forcing display');
 
 			// Force display style directly
@@ -90,26 +106,14 @@ document.addEventListener('DOMContentLoaded', function () {
 	const storedSession = Multiplayer.getStoredGameSession();
 
 	if (storedSession || urlGameId) {
-		console.log('Attempting to join multiplayer game with urlGameId:', urlGameId, ' and storedSession ', storedSession);
+		console.log('Attempting to connect to multiplayer game with urlGameId:', urlGameId, ' and storedSession ', storedSession);
 		MetachessGame.joinMultiplayer({ storedSession, urlGameId });
 	} else {
 		console.log('No multiplayer session or gameId in URL. Showing main menu.');
 		// Optionally show a message or main menu here
 	}
 
-	const menuButton = document.getElementById('menu-button');
-	if (menuButton) {
-		menuButton.addEventListener('click', function () {
-			document.getElementById('game-options-modal').style.display = 'flex';
-		});
-	}
 
-	document.querySelectorAll('.close-modal').forEach(button => {
-		button.addEventListener('click', function () {
-			document.getElementById('game-options-modal').style.display = 'none';
-			document.getElementById('concede-confirm-modal').style.display = 'none';
-		});
-	});
 
 	const newGameBtn = document.getElementById('new-game-btn');
 	if (newGameBtn) {

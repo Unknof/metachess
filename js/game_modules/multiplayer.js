@@ -12,6 +12,7 @@ export async function createMultiplayer({
 	const success = await MetachessSocket.init();
 	if (!success) {
 		updateStatusMessage('No socket connection. Playing in single-player mode.');
+		resetGameUrl();
 		return false;
 	}
 	setupSocketListeners();
@@ -29,6 +30,7 @@ export async function joinMultiplayer({
 	const success = await MetachessSocket.init();
 	if (!success) {
 		updateStatusMessage('No socket connection. Playing in single-player mode.');
+		resetGameUrl();
 		return false;
 	}
 	setupSocketListeners();
@@ -48,20 +50,14 @@ export async function joinMultiplayer({
 	if (storedSession && storedSession.gameId) {
 		const result = await checkGame(storedSession.gameId);
 		if (result && result.exists) {
-			if (result.started) {
-				await MetachessSocket.reconnectToGame(storedSession.gameId, storedSession.playerColor);
-				updateStatusMessage('Reconnected to your game!');
-				return true;
-			} else {
-				await MetachessSocket.joinGame(storedSession.gameId);
-				updateStatusMessage('Joined game!');
-				return true;
-			}
+			await MetachessSocket.reconnectToGame(storedSession.gameId, storedSession.playerColor);
+			updateStatusMessage('Reconnected to your game!');
+			return true;
 		}
 	}
 
-	// Then try URL gameId
-	if (urlGameId) {
+	// Only check URL gameId if it's different from storedSession.gameId
+	if (urlGameId && (!storedSession || urlGameId !== storedSession.gameId)) {
 		const result = await checkGame(urlGameId);
 		if (result && result.exists) {
 			if (result.started) {
@@ -76,7 +72,7 @@ export async function joinMultiplayer({
 		}
 	}
 
-	updateStatusMessage('Multiplayer unavailable. Playing in single-player mode.');
+	console.log('Multiplayer unavailable. Playing in single-player mode.');
 	resetGameUrl();
 	return false;
 }

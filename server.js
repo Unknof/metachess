@@ -361,7 +361,7 @@ wss.on('connection', (socket) => {
 					const passingPlayer = data.player;
 
 					// Check if passing player has an empty deck
-					gameMove.lastActivity = Date.now();
+					gamePass.lastActivity = Date.now();
 					const emptyDeck = passingPlayer === 'white' ?
 						(gamePass.whiteDeck.length === 0) : (gamePass.blackDeck.length === 0);
 
@@ -714,6 +714,12 @@ wss.on('connection', (socket) => {
 						timeControl: gameToReconnect.timeControl
 					}));
 
+					if (gameToReconnect.removeTimeout) {
+						clearTimeout(gameToReconnect.removeTimeout);
+						gameToReconnect.removeTimeout = null;
+					}
+
+
 					// Notify the other player that their opponent has reconnected
 					gameToReconnect.players.forEach(player => {
 						if (player !== socket && player.readyState === WebSocket.OPEN) {
@@ -760,7 +766,6 @@ wss.on('connection', (socket) => {
 	socket.on('close', () => {
 		console.log('Client disconnected');
 
-		// Notify other player if this player was in a game
 		if (socket.gameId && games[socket.gameId]) {
 			const game = games[socket.gameId];
 
@@ -772,8 +777,8 @@ wss.on('connection', (socket) => {
 				}
 			});
 
-			// Remove game after some time
-			setTimeout(() => {
+			// Remove game after some time, and store the timeout ID
+			game.removeTimeout = setTimeout(() => {
 				delete games[socket.gameId];
 				console.log(`Game ${socket.gameId} removed due to player disconnect`);
 			}, 60000);
