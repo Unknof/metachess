@@ -1,9 +1,17 @@
 // WebSocket handling for multiplayer functionality
+
 const MetachessSocket = (function () {
 	let socket = null;
 	let gameId = null;
 	let playerColor = null;
 	let callbacks = {};
+	let chess = null; // Add this at the top of the IIFE
+
+
+
+	function setChessInstance(chessInstance) {
+		chess = chessInstance;
+	}
 
 	function init(serverUrl = window.location.hostname === 'localhost' ?
 		'ws://localhost:8080' :
@@ -56,6 +64,22 @@ const MetachessSocket = (function () {
 					const data = JSON.parse(event.data);
 					//console.log('Message received:', data);
 
+					// Handle game creation
+					if (data.type === 'game_created' && data.gameId && data.playerColor) {
+						setGameInfo(data.gameId, data.playerColor);
+					}
+
+					// Handle join result
+					if (data.type === 'join_result' && data.success && data.gameId && data.playerColor) {
+						setGameInfo(data.gameId, data.playerColor);
+					}
+
+					// Handle reconnect result
+					if (data.type === 'reconnect_result' && data.success && data.gameId && data.playerColor) {
+						setGameInfo(data.gameId, data.playerColor);
+					}
+
+					// Call any registered callbacks
 					if (callbacks[data.type]) {
 						callbacks[data.type](data);
 					}
@@ -68,8 +92,11 @@ const MetachessSocket = (function () {
 
 				socket.onclose = () => {
 					console.log('WebSocket connection closed');
-					document.getElementById('connection-status').textContent = 'Disconnected';
-					document.getElementById('connection-status').className = 'connection-status disconnected';
+					const connectionStatus = document.getElementById('connection-status');
+					if (connectionStatus) {
+						connectionStatus.textContent = 'Disconnected';
+						connectionStatus.className = 'connection-status disconnected';
+					}
 				};
 			} catch (err) {
 				console.error('Failed to initialize WebSocket:', err);
@@ -90,10 +117,12 @@ const MetachessSocket = (function () {
 			type: 'move',
 			gameId: gameId,
 			move: move,
-			player: playerColor
+			player: playerColor,
+			fen: chess.fen()
 		}));
 
 		console.log('Move sent to server:', move);
+		console.log('Current FEN:', chess.fen());
 		return true;
 	}
 
@@ -112,7 +141,8 @@ const MetachessSocket = (function () {
 
 		socket.send(JSON.stringify({
 			type: 'join_game',
-			gameId: id
+			gameId: id,
+			playerId: localStorage.getItem('metachess_player_id')
 		}));
 
 		return true;
@@ -121,6 +151,15 @@ const MetachessSocket = (function () {
 	function setGameInfo(id, color) {
 		gameId = id;
 		playerColor = color;
+
+		// Automatically store the session when game info is set
+		if (id && color) {
+			import('./game_modules/multiplayer.js').then(module => {
+				module.storeGameSession(id, color);
+			}).catch(err => {
+				console.error('Failed to import multiplayer module:', err);
+			});
+		}
 	}
 
 	// Add a new function to check connection status
@@ -132,10 +171,10 @@ const MetachessSocket = (function () {
 		};
 	}
 
-	// Add a heartbeat to keep connection alive
 	function startHeartbeat() {
 		const heartbeatInterval = setInterval(() => {
-			if (socket && socket.readyState === WebSocket.OPEN) {
+			// Only send heartbeat if gameId is set (multiplayer game is active)
+			if (socket && socket.readyState === WebSocket.OPEN && gameId) {
 				socket.send(JSON.stringify({
 					type: 'heartbeat',
 					gameId: gameId
@@ -155,7 +194,8 @@ const MetachessSocket = (function () {
 		socket.send(JSON.stringify({
 			type: 'pass',
 			player: data.player,
-			gameId: data.gameId  // Make sure this line exists!
+			gameId: data.gameId,
+			fen: chess.fen()
 		}));
 
 		return true;
@@ -185,6 +225,25 @@ const MetachessSocket = (function () {
 		});
 	}
 
+	function reconnectToGame(gameId, playerColor) {
+
+		console.log(`Attempting to reconnect to game ${gameId}`);
+		return reconnect().then(success => {
+			if (!success) {
+				return false;
+			}
+
+			// Now send the game reconnection message
+			socket.send(JSON.stringify({
+				type: 'reconnect',
+				gameId: gameId,
+				playerId: localStorage.getItem('metachess_player_id')
+			}));
+
+			return true;
+		});
+	}
+
 	function sendCheckValidMoves(data) {
 		if (!socket || socket.readyState !== WebSocket.OPEN) {
 			console.error("Cannot send check valid moves: Socket not connected");
@@ -202,9 +261,26 @@ const MetachessSocket = (function () {
 		return true;
 	}
 
+	function sendCheckGame(gameId) {
+		if (!socket || socket.readyState !== WebSocket.OPEN) return false;
+		socket.send(JSON.stringify({
+			type: 'check_game',
+			gameId
+		}));
+		return true;
+	}
+
+	function off(eventType, callback) {
+		if (callbacks[eventType] === callback) {
+			delete callbacks[eventType];
+		}
+	}
+
+
 	return {
 		init,
 		on,
+		off,
 		sendMove,
 		createGame,
 		joinGame,
@@ -212,8 +288,11 @@ const MetachessSocket = (function () {
 		getConnectionInfo,
 		sendPass,
 		reconnect,
+		reconnectToGame,
+		sendCheckGame,
 		sendGameOver,
 		sendCheckValidMoves,
+		setChessInstance,
 		isConnected() {
 			return socket && socket.readyState === WebSocket.OPEN;
 		},
@@ -225,3 +304,5 @@ const MetachessSocket = (function () {
 		}
 	};
 })();
+
+export { MetachessSocket };

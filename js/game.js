@@ -1,5 +1,7 @@
+import { MetachessSocket } from './socket.js';
 import * as Multiplayer from './game_modules/multiplayer.js';
 import { setupSocketListeners } from './game_modules/socketListeners.js';
+
 
 const MetachessGame = (function () {
 	// Game state
@@ -14,7 +16,6 @@ const MetachessGame = (function () {
 	let board = null;
 	let chess = null;
 	let selectedCard = null;
-	let selectedSquare = null; // Added selectedSquare variable
 	let engineInitialized = false;
 	let playerColor = null; // 'white', 'black', or null (for local play)
 	let timeControl = {
@@ -64,7 +65,6 @@ const MetachessGame = (function () {
 
 		// Clear any move highlighting
 		updateLastMoveHighlighting(null, null);
-		setupGameOptionsModal();
 
 		// Initialize decks with appropriate case
 		whiteDeck = MetachessDeck.createDeck();
@@ -130,9 +130,6 @@ const MetachessGame = (function () {
 		if (playerColor === 'black' && board) {
 			board.orientation('black');
 		}
-
-		// Call setupGameOptionsModal
-		setupGameOptionsModal();
 	}
 
 	function updateDecks() {
@@ -607,18 +604,8 @@ const MetachessGame = (function () {
 		);
 
 		updateBoardBorder();
-		showPassIndicator();
 	}
 
-	// Update your initMultiplayer function
-	function initMultiplayer() {
-		return Multiplayer.initMultiplayer({
-			MetachessSocket,
-			setupSocketListeners: setupSocketListenersWrapper, // Pass the wrapper function
-			showMultiplayerOptions,
-			updateStatusMessage
-		});
-	}
 
 	function setupSocketListenersWrapper() {
 		// We need to create an object with all dependencies
@@ -635,6 +622,7 @@ const MetachessGame = (function () {
 			timeControl,
 			currentTurn,
 			chess,
+			board,
 
 			// Functions needed
 			applyOpponentMove,
@@ -665,20 +653,6 @@ const MetachessGame = (function () {
 			if (updatedState.playerColor) playerColor = updatedState.playerColor;
 			if (updatedState.currentTurn) currentTurn = updatedState.currentTurn;
 		}
-	}
-
-
-
-	// Update your showMultiplayerOptions function
-	function showMultiplayerOptions() {
-		// Show multiplayer modal
-		const modal = document.getElementById('multiplayer-modal');
-		modal.style.display = 'flex';
-		modal.style.opacity = '1';
-		modal.style.visibility = 'visible';
-		console.log('Set multiplayer modal display to flex');
-
-		// DO NOT add event listeners here - they're handled in app.js
 	}
 
 	function initializeWithColor(color) {
@@ -800,31 +774,6 @@ const MetachessGame = (function () {
 		}
 	}
 
-	function removeCardFromOpponentHand(index) {
-		// Determine current opponent
-		const opponentIsWhite = currentTurn === 'white';
-
-		if (opponentIsWhite) {
-			whiteHand.splice(index, 1);
-
-			// Draw a new card if deck isn't empty
-			if (whiteDeck.length > 0 && whiteHand.length < 5) {
-				whiteHand.push(MetachessDeck.drawCards(whiteDeck, 1)[0]);
-			}
-		} else {
-			blackHand.splice(index, 1);
-
-			// Draw a new card if deck isn't empty
-			if (blackDeck.length > 0 && blackHand.length < 5) {
-				blackHand.push(MetachessDeck.drawCards(blackDeck, 1)[0]);
-			}
-		}
-
-		// Update UI
-		updateDecks();
-		updateHands();
-	}
-
 	function disableAllControls() {
 		// Use the single pass button instead of white-pass and black-pass
 		const passButton = document.getElementById('pass-turn');
@@ -832,24 +781,6 @@ const MetachessGame = (function () {
 			passButton.disabled = true;
 		}
 	}
-
-	function setupBoardClickHandler() {
-		board.on('click touchend', function (event) {
-			// Prevent double-firing on touch devices
-			if (event.type === 'touchend') {
-				event.preventDefault();
-			}
-
-			// If this is a multiplayer game, check if it's your turn
-			if (playerColor && currentTurn !== playerColor) {
-				updateStatusMessage("Not your turn");
-				return;
-			}
-
-			// Rest of your click handler code...
-		});
-	}
-
 	// Add this helper function
 	function synchronizeGameState(serverTurn) {
 		// Update our local turn state
@@ -1177,6 +1108,18 @@ const MetachessGame = (function () {
 			timeControl.timerId = null;
 		}
 
+		if (playerColor && MetachessSocket && MetachessSocket.isConnected()) {
+			const winner = playerColor === 'white' ? 'black' : 'white';
+
+			// This ensures the server stops the clock for both players
+			MetachessSocket.sendGameOver({
+				gameId: MetachessSocket.gameId,
+				winner: winner,
+				loser: playerColor,
+				reason: winCondition
+			});
+		}
+
 		// Determine winner based on player who lost
 		const winner = playerColor === 'white' ? 'BLACK' : 'WHITE';
 
@@ -1295,7 +1238,6 @@ const MetachessGame = (function () {
 		gameOver = false;
 		currentTurn = 'white';
 		selectedCard = null;
-		selectedSquare = null;
 		playerColor = null; // Reset to single player mode
 
 		// Reset time control
@@ -1356,96 +1298,6 @@ const MetachessGame = (function () {
 	function setTurn(turn) {
 		currentTurn = turn;
 		togglePlayerControls();
-	}
-
-	// Add this function at the end of your MetachessGame module
-	function setupGameOptionsModal() {
-		// Get modal elements
-		const gameOptionsModal = document.getElementById('game-options-modal');
-		const concedeConfirmModal = document.getElementById('concede-confirm-modal');
-
-		const menuButton = document.getElementById('menu-button');
-		if (menuButton) {
-			menuButton.addEventListener('click', function () {
-				gameOptionsModal.style.display = 'flex';
-			});
-		}
-		// Setup the multiplayer button to open the options modal
-		const multiplayerButton = document.querySelector('.multiplayer-button');
-		if (multiplayerButton) {
-			// Replace the current click event with our modal
-			const newButton = multiplayerButton.cloneNode(true);
-			multiplayerButton.parentNode.replaceChild(newButton, multiplayerButton);
-
-			newButton.addEventListener('click', function () {
-				gameOptionsModal.style.display = 'flex';
-			});
-		}
-
-		// Setup button handlers
-		document.getElementById('multiplayer-btn').addEventListener('click', function () {
-			// Explicitly hide the game options modal
-			gameOptionsModal.style.display = 'none';
-
-			// Small delay before showing multiplayer options to ensure DOM updates
-			setTimeout(() => {
-				showMultiplayerOptions();
-			}, 50);
-		});
-
-		document.getElementById('new-game-btn').addEventListener('click', function () {
-			// Hide the modal
-			gameOptionsModal.style.display = 'none';
-
-			// Reset the game
-			resetGame();
-		});
-
-		document.getElementById('concede-button').addEventListener('click', function () {
-			gameOptionsModal.style.display = 'none';
-			concedeConfirmModal.style.display = 'flex';
-		});
-
-		document.getElementById('confirm-concede').addEventListener('click', function () {
-			concedeConfirmModal.style.display = 'none';
-
-			// Determine the conceding player
-			const concedingPlayer = playerColor || currentTurn;
-
-			// Concede the game
-			gameOverWin(concedingPlayer, 'resignation');
-
-			// If in multiplayer, notify the other player
-			if (playerColor && MetachessSocket.isConnected()) {
-				MetachessSocket.sendGameOver({
-					gameId: MetachessSocket.gameId,
-					winner: concedingPlayer === 'white' ? 'black' : 'white',
-					reason: 'resignation'
-				});
-			}
-		});
-
-		document.getElementById('cancel-concede').addEventListener('click', function () {
-			concedeConfirmModal.style.display = 'none';
-		});
-
-		// Setup all close buttons
-		document.querySelectorAll('.close-modal').forEach(button => {
-			button.addEventListener('click', function () {
-				gameOptionsModal.style.display = 'none';
-				concedeConfirmModal.style.display = 'none';
-			});
-		});
-
-		// Close modal when clicking outside
-		window.addEventListener('click', function (event) {
-			if (event.target === gameOptionsModal) {
-				gameOptionsModal.style.display = 'none';
-			}
-			if (event.target === concedeConfirmModal) {
-				concedeConfirmModal.style.display = 'none';
-			}
-		});
 	}
 
 	function attemptRedrawsUntilValidMove(player) {
@@ -1710,10 +1562,30 @@ const MetachessGame = (function () {
 	}
 
 	return {
+
+		createMultiplayer() {
+			return Multiplayer.createMultiplayer({
+				MetachessSocket,
+				setupSocketListeners: setupSocketListenersWrapper,
+				updateStatusMessage
+			});
+		},
+		joinMultiplayer({ storedSession, urlGameId, gameId }) {
+			return Multiplayer.joinMultiplayer({
+				MetachessSocket,
+				setupSocketListeners: setupSocketListenersWrapper,
+				updateStatusMessage,
+				storedSession,
+				urlGameId,
+				gameId
+			});
+		},
+
+
 		init,
 		passTurn,
-		initMultiplayer,
 		resetGame,
+		gameOverWin,
 		// New methods for testing
 		getCurrentTurn() {
 			return currentTurn;
@@ -1743,3 +1615,5 @@ window.MetachessGame = {
 	...MetachessGame
 	// No need to add individual functions here, they're already in MetachessGame object
 };
+
+export { MetachessGame };

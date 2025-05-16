@@ -15,6 +15,7 @@ export function setupSocketListeners({
 	timeControl,
 	currentTurn,
 	chess,
+	board,
 
 	// Functions needed
 	applyOpponentMove,
@@ -32,11 +33,16 @@ export function setupSocketListeners({
 	handleMultiplayerRedraw,
 	checkForValidMoves,
 	startClock,
-	updateMaterialDisplay,
 	highlightKingInCheck
 }) {
 	// Listen for game created event
 	MetachessSocket.on('game_created', (data) => {
+
+		const newUrl = new URL(window.location);
+		newUrl.searchParams.set('game', data.gameId);
+		window.history.pushState({}, '', newUrl);
+
+
 		console.log('Game created:', data);
 		MetachessSocket.setGameInfo(data.gameId, data.playerColor);
 		playerColor = data.playerColor;  // This is important - set playerColor immediately
@@ -53,7 +59,7 @@ export function setupSocketListeners({
 
 		// Update UI to show waiting for opponent
 		updateStatusMessage('Waiting for opponent to join...');
-		document.getElementById('game-link').value = `${window.location.href}?game=${data.gameId}`;
+		document.getElementById('game-link').value = `${window.location.href}`;
 		document.getElementById('waiting-modal').style.display = 'flex';
 
 		// Disable controls until opponent joins
@@ -92,6 +98,10 @@ export function setupSocketListeners({
 		// Set game ID and player color
 		MetachessSocket.setGameInfo(data.gameId, data.playerColor);
 		playerColor = data.playerColor;
+
+		const newUrl = new URL(window.location);
+		newUrl.searchParams.set('game', data.gameId);
+		window.history.pushState({}, '', newUrl);
 
 		// Clear any open modals
 		document.getElementById('multiplayer-modal').style.display = 'none';
@@ -342,44 +352,78 @@ export function setupSocketListeners({
 
 	// Add handler for reconnection_successful event
 	MetachessSocket.on('reconnection_successful', (data) => {
-		console.log('Reconnection successful:', data);
+		console.log('Reconnection successful, restoring game state:', data);
 
-		// Set game ID and player color
+		// Set game info
 		MetachessSocket.setGameInfo(data.gameId, data.playerColor);
 		playerColor = data.playerColor;
 
-		// Clear any open modals
-		document.getElementById('multiplayer-modal').style.display = 'none';
-		document.getElementById('waiting-modal').style.display = 'none';
-
-		// Set game state
+		// Restore deck and hand state
 		whiteDeck = Array(data.whiteDeck).fill('?');
 		blackDeck = Array(data.blackDeck).fill('?');
-		chess.load(data.fen);
-		currentTurn = data.currentTurn;
-		timeControl = data.timeControl;
 
 		// Update hands based on player color
 		if (playerColor === 'white') {
-			whiteHand = data.whiteHand;
+			whiteHand = data.whiteHand || [];
+			blackHand = []; // Don't know opponent's hand
 		} else {
-			blackHand = data.blackHand;
+			whiteHand = []; // Don't know opponent's hand
+			blackHand = data.blackHand || [];
 		}
 
-		// Initialize with player color
+		// Clear any open modals
+		document.querySelectorAll('.modal').forEach(modal => {
+			modal.style.display = 'none';
+		});
+
+		// Set up board with the current FEN
+		if (data.fen && data.fen !== 'start') {
+			chess.load(data.fen);
+		}
+
+		// Update UI
+		updateDecks();
+		updateHands();
+		updateStatusMessage(`Reconnected as ${playerColor.toUpperCase()}`);
+
+		// Synchronize game state from server
+		currentTurn = data.currentTurn;
+		synchronizeGameState(data.currentTurn);
+
+		// Reset board to match FEN
+		if (board) {
+			board.position(chess.fen());
+		}
+
+		// Initialize with player color to set up pieces correctly
 		initializeWithColor(playerColor);
 
-		// Update board
-		updateMaterialDisplay();
-		updateBoardBorder();
-
-		// Show notification
-		updateStatusMessage(`Reconnected to game! You are playing as ${playerColor.toUpperCase()}`);
-
-		// Start clock if game is in progress
-		if (data.timeControl.started) {
-			startClock();
+		// Setup time control
+		if (data.timeControl) {
+			Object.assign(timeControl, data.timeControl);
+			timeControl.started = true;
+			updateClockDisplay();
 		}
+
+		// Enable or disable controls based on turn
+		togglePlayerControls();
+
+		// Update board border to show current turn
+		updateBoardBorder(currentTurn);
+
+		// Check if king is in check
+		highlightKingInCheck();
+	});
+
+	MetachessSocket.on('error', (data) => {
+		if (data.message && data.message.includes('Game no longer exists')) {
+			console.log("Clearing stale game session from localStorage");
+			localStorage.removeItem('metachess_active_game');
+
+
+			updateStatusMessage('');
+		}
+		// ...other error handling...
 	});
 
 	return {

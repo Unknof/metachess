@@ -28,6 +28,21 @@ const wss = new WebSocket.Server({ server });
 const TIME_UPDATE_INTERVAL = 1000; // Send updates every second
 const activeTimers = new Set();
 
+setInterval(() => {
+	const now = Date.now();
+	for (const [gameId, game] of Object.entries(games)) {
+		if (!game.timeControl.started && now - game.createdAt > 3 * 60 * 1000) {
+			// Not started after 3 minutes
+			delete games[gameId];
+			console.log(`Deleted unstarted game ${gameId} after 3 minutes`);
+		} else if (game.timeControl.started && now - game.lastActivity > 10 * 60 * 1000) {
+			// Started but inactive for 10 minutes
+			delete games[gameId];
+			console.log(`Deleted inactive game ${gameId} after 10 minutes`);
+		}
+	}
+}, 60 * 1000); // Run every minute
+
 // Add a function to start/manage the game timers
 function startGameTimer(gameId) {
 	if (activeTimers.has(gameId)) return; // Timer already running
@@ -72,6 +87,7 @@ function startGameTimer(gameId) {
 				clearInterval(gameTimerId);
 				activeTimers.delete(gameId);
 				game.gameOver = true;
+				delete games[gameId];
 				return;
 			}
 
@@ -180,7 +196,14 @@ wss.on('connection', (socket) => {
 							black: DEFAULT_TIME_SECONDS,
 							lastMoveTime: null, // null until first white move
 							started: false      // Flag to track if clock has started
-						}
+						},
+						createdAt: Date.now(),
+						lastActivity: Date.now(),
+						playerInfo: {
+							[creatorColor]: { playerId: data.playerId || null }, // store playerId if available
+							[joinerColor]: { playerId: null }
+						},
+						fen: 'start', // Initial FEN string
 					};
 
 					socket.gameId = gameId;
@@ -204,6 +227,7 @@ wss.on('connection', (socket) => {
 							type: 'error',
 							message: 'Game not found'
 						}));
+
 						return;
 					}
 
@@ -215,6 +239,8 @@ wss.on('connection', (socket) => {
 						return;
 					}
 
+					game.lastActivity = Date.now();
+					game.playerInfo[game.joinerColor].playerId = data.playerId;
 					game.players.push(socket);
 					socket.gameId = data.gameId;
 					socket.playerColor = game.joinerColor;
@@ -245,6 +271,7 @@ wss.on('connection', (socket) => {
 					if (!gameMove) return;
 
 					// Update hands based on the move
+					gameMove.lastActivity = Date.now();
 					const moveData = data.move;
 					const playerColor = data.player;
 					const handIndex = moveData.handIndex;
@@ -285,6 +312,10 @@ wss.on('connection', (socket) => {
 					// Store move
 					gameMove.moves.push(data.move);
 					gameMove.currentTurn = data.player === 'white' ? 'black' : 'white';
+
+					if (data.fen) {
+						gameMove.fen = data.fen;
+					}
 
 					// Broadcast move to the other player
 					gameMove.players.forEach(client => {
@@ -330,6 +361,7 @@ wss.on('connection', (socket) => {
 					const passingPlayer = data.player;
 
 					// Check if passing player has an empty deck
+					gameMove.lastActivity = Date.now();
 					const emptyDeck = passingPlayer === 'white' ?
 						(gamePass.whiteDeck.length === 0) : (gamePass.blackDeck.length === 0);
 
@@ -426,7 +458,11 @@ wss.on('connection', (socket) => {
 							}));
 						}
 					});
+					if (data.fen) {
+						gamePass.fen = data.fen;
+					}
 					break;
+
 
 				case 'check_valid_moves':
 					console.log("RECEIVED check_valid_moves", data);
@@ -563,6 +599,7 @@ wss.on('connection', (socket) => {
 								}));
 							}
 						});
+						delete games[gameId];
 						return;
 					}
 
@@ -598,6 +635,95 @@ wss.on('connection', (socket) => {
 					});
 					break;
 
+				case 'reconnect':
+					const gameToReconnect = games[data.gameId];
+					if (!gameToReconnect || gameToReconnect.gameOver) {
+						console.log(`Reconnect failed: game ${data.gameId} not found or over`);
+						socket.send(JSON.stringify({
+							type: 'error',
+							message: 'Game no longer exists or is already over'
+						}));
+						return;
+					}
+
+					// Check if this is a valid player in the game
+					let reconnectingPlayerColor = null;
+					for (const color of ['white', 'black']) {
+						if (gameToReconnect.playerInfo[color].playerId === data.playerId) {
+							reconnectingPlayerColor = color;
+							break;
+						}
+					}
+					if (!reconnectingPlayerColor) {
+						socket.send(JSON.stringify({
+							type: 'error',
+							message: 'Player ID not recognized for this game'
+						}));
+						return;
+					}
+
+					let playerFound = false;
+					for (let i = 0; i < gameToReconnect.players.length; i++) {
+						// If there's a slot for this color that's disconnected or the same player is reconnecting
+
+						if ((gameToReconnect.players[i].playerColor === reconnectingPlayerColor &&
+							gameToReconnect.players[i].readyState !== WebSocket.OPEN) ||
+							gameToReconnect.players.length < 2) {
+
+							// Replace or add the socket
+							socket.gameId = data.gameId;
+							socket.playerColor = reconnectingPlayerColor;
+
+							if (i < gameToReconnect.players.length) {
+								gameToReconnect.players[i] = socket;
+							} else {
+								gameToReconnect.players.push(socket);
+							}
+
+							playerFound = true;
+							console.log(`Player ${reconnectingPlayerColor} reconnected to game ${data.gameId}`);
+							break;
+						}
+					}
+
+					if (!playerFound) {
+						socket.send(JSON.stringify({
+							type: 'error',
+							message: 'Cannot reconnect to game - position already filled'
+						}));
+						return;
+					}
+
+					let chess = new Chess();
+					for (const move of gameToReconnect.moves) {
+						chess.move(move);
+					}
+					const fen = chess.fen();
+
+					// Send the current game state to the reconnected player
+					socket.send(JSON.stringify({
+						type: 'reconnection_successful',
+						gameId: data.gameId,
+						playerColor: reconnectingPlayerColor,
+						currentTurn: gameToReconnect.currentTurn,
+						fen, // <-- Use reconstructed FEN
+						whiteDeck: gameToReconnect.whiteDeck.length,
+						whiteHand: reconnectingPlayerColor === 'white' ? gameToReconnect.whiteHand : [],
+						blackDeck: gameToReconnect.blackDeck.length,
+						blackHand: reconnectingPlayerColor === 'black' ? gameToReconnect.blackHand : [],
+						timeControl: gameToReconnect.timeControl
+					}));
+
+					// Notify the other player that their opponent has reconnected
+					gameToReconnect.players.forEach(player => {
+						if (player !== socket && player.readyState === WebSocket.OPEN) {
+							player.send(JSON.stringify({
+								type: 'opponent_reconnected'
+							}));
+						}
+					});
+					break;
+
 				case 'heartbeat':
 					// Just acknowledge heartbeat
 					socket.send(JSON.stringify({
@@ -610,6 +736,17 @@ wss.on('connection', (socket) => {
 						console.log(`Heartbeat for game ${data.gameId}, ${game.players.length} players connected`);
 					}
 					break;
+
+				case 'check_game': {
+					const game = games[data.gameId];
+					socket.send(JSON.stringify({
+						type: 'check_game_result',
+						gameId: data.gameId,
+						exists: !!game,
+						started: !!(game && game.timeControl && game.timeControl.started)
+					}));
+					break;
+				}
 			}
 		} catch (error) {
 			console.error('Error processing message:', error);
@@ -648,4 +785,5 @@ wss.on('connection', (socket) => {
 const PORT = process.env.PORT || 8080;
 server.listen(PORT, () => {
 	console.log(`Server running on port ${PORT}`);
+	console.log('Games in memory at server start:', Object.keys(games));
 });

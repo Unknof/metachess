@@ -1,4 +1,8 @@
-// Main application entry point
+import { MetachessGame } from './game.js';
+import { MetachessSocket } from './socket.js';
+import * as Multiplayer from './game_modules/multiplayer.js';
+
+
 
 console.log('App version running on port: ' + window.location.port);
 
@@ -10,7 +14,7 @@ document.addEventListener('DOMContentLoaded', function () {
 	// Initialize the chessboard
 	const { chess, board } = MetachessBoard.init('chessboard');
 
-	// Initialize game with the chess and board instances
+	MetachessSocket.setChessInstance(chess);
 	MetachessGame.init(chess, board);
 
 	// Copy game link button
@@ -56,24 +60,13 @@ document.addEventListener('DOMContentLoaded', function () {
 	// Update your existing create game button handler
 	const createGameBtn = document.getElementById('create-game-btn');
 	if (createGameBtn) {
-		// Remove any existing event listeners to avoid duplicates
-		createGameBtn.replaceWith(createGameBtn.cloneNode(true));
-
-		// Get the fresh element and add listener
-		const freshCreateBtn = document.getElementById('create-game-btn');
-		freshCreateBtn.addEventListener('click', function (e) {
+		createGameBtn.addEventListener('click', function (e) {
 			e.preventDefault();
-			//console.log('Create game button clicked - initiating multiplayer setup');
-
-			// Hide the multiplayer modal
+			Multiplayer.clearGameSession();
 			document.getElementById('multiplayer-modal').style.display = 'none';
-
-			// Initialize multiplayer and create game
-			MetachessGame.initMultiplayer()
+			MetachessGame.createMultiplayer()
 				.then(() => {
-					// Short delay to ensure socket is properly connected
 					setTimeout(() => {
-						console.log('Creating new game via socket');
 						MetachessSocket.createGame();
 					}, 500);
 				})
@@ -85,31 +78,84 @@ document.addEventListener('DOMContentLoaded', function () {
 	}
 
 	const joinGameBtn = document.getElementById('join-game-btn');
-	if (joinGameBtn) {
-		joinGameBtn.addEventListener('click', function () {
-			const gameId = document.getElementById('game-id-input').value.trim();
-			if (gameId) {
-				MetachessGame.initMultiplayer().then(() => {
-					setTimeout(() => {
-						MetachessSocket.joinGame(gameId);
-					}, 500);
-				});
-			}
+	joinGameBtn.addEventListener('click', function () {
+		const gameId = document.getElementById('game-id-input').value.trim();
+		if (gameId) {
+			MetachessGame.joinMultiplayer({ gameId });
+		}
+	});
+
+	const urlParams = new URLSearchParams(window.location.search);
+	const urlGameId = urlParams.get('game');
+	const storedSession = Multiplayer.getStoredGameSession();
+
+	if (storedSession || urlGameId) {
+		console.log('Attempting to join multiplayer game with urlGameId:', urlGameId, ' and storedSession ', storedSession);
+		MetachessGame.joinMultiplayer({ storedSession, urlGameId });
+	} else {
+		console.log('No multiplayer session or gameId in URL. Showing main menu.');
+		// Optionally show a message or main menu here
+	}
+
+	const menuButton = document.getElementById('menu-button');
+	if (menuButton) {
+		menuButton.addEventListener('click', function () {
+			document.getElementById('game-options-modal').style.display = 'flex';
 		});
 	}
 
-	// Check if we have a game ID in the URL
-	const urlParams = new URLSearchParams(window.location.search);
-	const gameId = urlParams.get('game');
-	const multiplayerMode = urlParams.get('multiplayer');
+	document.querySelectorAll('.close-modal').forEach(button => {
+		button.addEventListener('click', function () {
+			document.getElementById('game-options-modal').style.display = 'none';
+			document.getElementById('concede-confirm-modal').style.display = 'none';
+		});
+	});
 
-	if (gameId || multiplayerMode === 'true') {
-		// We're joining a game or explicitly requesting multiplayer mode
-		MetachessGame.initMultiplayer();
-	} else {
-		// Default to single player mode
-		//document.getElementById('game-status').textContent = 'Single Player Mode';
+	const newGameBtn = document.getElementById('new-game-btn');
+	if (newGameBtn) {
+		newGameBtn.addEventListener('click', function () {
+			document.getElementById('game-options-modal').style.display = 'none';
+			MetachessGame.resetGame();
+		});
 	}
+
+	const concedeButton = document.getElementById('concede-button');
+	if (concedeButton) {
+		concedeButton.addEventListener('click', function () {
+			document.getElementById('game-options-modal').style.display = 'none';
+			document.getElementById('concede-confirm-modal').style.display = 'flex';
+		});
+	}
+
+	const confirmConcede = document.getElementById('confirm-concede');
+	if (confirmConcede) {
+		confirmConcede.addEventListener('click', function () {
+			document.getElementById('concede-confirm-modal').style.display = 'none';
+			// Determine the conceding player
+			const concedingPlayer = MetachessGame.getCurrentTurn ? MetachessGame.getCurrentTurn() : 'white';
+			MetachessGame.gameOverWin(concedingPlayer, 'resignation');
+			// Optionally notify opponent if multiplayer
+			// (You may need to expose MetachessSocket and playerColor if needed)
+		});
+	}
+
+	const cancelConcede = document.getElementById('cancel-concede');
+	if (cancelConcede) {
+		cancelConcede.addEventListener('click', function () {
+			document.getElementById('concede-confirm-modal').style.display = 'none';
+		});
+	}
+
+	window.addEventListener('click', function (event) {
+		const gameOptionsModal = document.getElementById('game-options-modal');
+		const concedeConfirmModal = document.getElementById('concede-confirm-modal');
+		if (event.target === gameOptionsModal) {
+			gameOptionsModal.style.display = 'none';
+		}
+		if (event.target === concedeConfirmModal) {
+			concedeConfirmModal.style.display = 'none';
+		}
+	});
 
 	// Make sure both modals are hidden when an opponent joins
 	const originalInitMultiplayer = MetachessGame.initMultiplayer;
@@ -121,9 +167,11 @@ document.addEventListener('DOMContentLoaded', function () {
 		MetachessSocket.on('opponent_joined', () => {
 			const multiplayerModal = document.getElementById('multiplayer-modal');
 			const waitingModal = document.getElementById('waiting-modal');
+			const menuButton = document.getElementById('menu-button');
 
 			if (multiplayerModal) multiplayerModal.style.display = 'none';
 			if (waitingModal) waitingModal.style.display = 'none';
+			if (menuButton) menuButton.style.display = 'none';
 		});
 
 		return result;
@@ -159,9 +207,4 @@ document.addEventListener('DOMContentLoaded', function () {
 
 	console.log('Checking for CSS conflicts');
 
-	// Debug function to check modal state
-	function checkModalState() {
-		const multiplayerModal = document.getElementById('multiplayer-modal');
-		const waitingModal = document.getElementById('waiting-modal');
-	}
 });

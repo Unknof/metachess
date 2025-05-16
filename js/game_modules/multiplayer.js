@@ -1,40 +1,84 @@
-export function initMultiplayer({
+function resetGameUrl() {
+	const url = new URL(window.location);
+	url.searchParams.delete('game');
+	window.history.replaceState({}, '', url.pathname + url.search);
+}
+
+export async function createMultiplayer({
 	MetachessSocket,
 	setupSocketListeners,
-	showMultiplayerOptions,
 	updateStatusMessage
 }) {
-	// Initialize socket connection and return the promise
-	return MetachessSocket.init()
-		.then(success => {
-			if (success) {
-				console.log('Socket connection successful, ready for multiplayer');
-				setupSocketListeners(); // This now calls our wrapper function
+	const success = await MetachessSocket.init();
+	if (!success) {
+		updateStatusMessage('No socket connection. Playing in single-player mode.');
+		return false;
+	}
+	setupSocketListeners();
+	// The actual game creation will be triggered by the client after this resolves
+	return true;
+}
 
-				// Check for game ID in URL - AFTER socket is connected
-				const urlParams = new URLSearchParams(window.location.search);
-				const gameId = urlParams.get('game');
+export async function joinMultiplayer({
+	MetachessSocket,
+	setupSocketListeners,
+	updateStatusMessage,
+	storedSession,
+	urlGameId
+}) {
+	const success = await MetachessSocket.init();
+	if (!success) {
+		updateStatusMessage('No socket connection. Playing in single-player mode.');
+		return false;
+	}
+	setupSocketListeners();
 
-				if (gameId) {
-					console.log('Found game ID in URL, joining game:', gameId);
-					// Add a slight delay to ensure socket is ready
-					setTimeout(() => {
-						MetachessSocket.joinGame(gameId);
-					}, 300);
-				} else {
-					// Only show multiplayer options if not joining a game
-					showMultiplayerOptions();
-					return true; // Return success
-				}
-				return true; // Return success
-			}
-			return false; // Return failure
-		})
-		.catch(error => {
-			console.error('Failed to initialize multiplayer:', error);
-			updateStatusMessage('Multiplayer unavailable. Playing in single-player mode.');
-			return false; // Return failure
+	const checkGame = (gameId) => {
+		return new Promise(resolve => {
+			const handler = (result) => {
+				MetachessSocket.off('check_game_result', handler);
+				resolve(result);
+			};
+			MetachessSocket.on('check_game_result', handler);
+			MetachessSocket.sendCheckGame(gameId);
 		});
+	};
+
+	// Prefer stored session first
+	if (storedSession && storedSession.gameId) {
+		const result = await checkGame(storedSession.gameId);
+		if (result && result.exists) {
+			if (result.started) {
+				await MetachessSocket.reconnectToGame(storedSession.gameId, storedSession.playerColor);
+				updateStatusMessage('Reconnected to your game!');
+				return true;
+			} else {
+				await MetachessSocket.joinGame(storedSession.gameId);
+				updateStatusMessage('Joined game!');
+				return true;
+			}
+		}
+	}
+
+	// Then try URL gameId
+	if (urlGameId) {
+		const result = await checkGame(urlGameId);
+		if (result && result.exists) {
+			if (result.started) {
+				await MetachessSocket.reconnectToGame(urlGameId);
+				updateStatusMessage('Reconnected to your game!');
+				return true;
+			} else {
+				await MetachessSocket.joinGame(urlGameId);
+				updateStatusMessage('Joined game!');
+				return true;
+			}
+		}
+	}
+
+	updateStatusMessage('Multiplayer unavailable. Playing in single-player mode.');
+	resetGameUrl();
+	return false;
 }
 
 export function handlePassInMultiplayer({ playerColor, currentTurn, MetachessSocket, updateStatusMessage, disableAllControls }) {
