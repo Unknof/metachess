@@ -83,13 +83,53 @@ const MetachessGame = (function () {
 		// 6. Enable controls for the current player
 		togglePlayerControls();
 
-		// 7. Update hand UI to show the player's cards
-		updateHands();
+		currentTurn = serverState.currentTurn;
 
 		// 8. Flip board if player is black
 		if (playerColor === 'black' && board) {
 			board.orientation('black');
 		}
+	}
+
+	/**
+ * Update the card UI for a given hand and deck.
+ * @param {Array} hand - The hand to display (array of piece codes)
+ * @param {Array|number} deck - The deck to display (array or deck length)
+ * @param {string} color - 'white' or 'black'
+ */
+	function updateCardsUI(hand, deck, color) {
+		// Update deck count
+		const deckCount = Array.isArray(deck) ? deck.length : deck;
+		if (color === playerColor) {
+			document.getElementById('player-deck-count').textContent = deckCount;
+		} else {
+			document.getElementById('opponent-deck-count').textContent = deckCount;
+		}
+
+		// Render cards for the hand
+		const containerId = 'player-cards'; // Adjust if you have separate containers
+		const validMoves = checkCardValiditySynchronous(hand);
+		MetachessDeck.renderCards(hand, containerId, color, false, validMoves);
+
+		// Add click handlers to cards (if needed)
+		const playercards = document.querySelectorAll(`#${containerId} .piece-card`);
+		playercards.forEach(card => {
+			card.addEventListener('click', () => {
+				if (card.classList.contains('disabled')) {
+					const pieceType = card.dataset.pieceType;
+					const pieceName = pieceTypeMap[pieceType.toLowerCase()] || pieceType;
+					updateStatusMessage(`That ${pieceName} has no valid moves`);
+					return;
+				}
+				selectCard(card.dataset.pieceType, parseInt(card.dataset.index));
+			});
+			if (window.innerWidth <= 768) {
+				card.addEventListener('touchend', function (e) {
+					e.preventDefault();
+					selectCard(card.dataset.pieceType, parseInt(card.dataset.index));
+				});
+			}
+		});
 	}
 
 	// Add button initialization to the init function
@@ -188,7 +228,7 @@ const MetachessGame = (function () {
 
 	// Update updateHands function for the new simplified UI
 	function updateHands() {
-		console.log("Updating hands, current turn:", currentTurn);
+		//console.log("Updating hands, current turn:", currentTurn);
 
 		// Remove existing listeners first
 		const allCards = document.querySelectorAll('.piece-card');
@@ -203,7 +243,7 @@ const MetachessGame = (function () {
 			// In multiplayer - we only ever render our own cards
 			playerToRender = playerColor;
 			containerToUse = 'player-cards';
-
+			console.log("Rendering cards in multiplayer for color:", playerToRender);
 			// Update deck counts
 			document.getElementById('player-deck-count').textContent =
 				playerColor === 'white' ? whiteDeck.length : blackDeck.length;
@@ -395,7 +435,7 @@ const MetachessGame = (function () {
 						});
 
 						// Switch turn if game not over
-						if (!gameOver) {
+						if (!gameOver && !playerColor) {
 							switchTurn();
 							updateBoardBorder();
 						}
@@ -435,9 +475,10 @@ const MetachessGame = (function () {
 			}
 		}
 
-		// Update UI
-		updateDecks();
-		updateHands();
+		if (!playerColor) {
+			updateDecks();
+			updateHands();
+		}
 	}
 
 	function clearCardSelection() {
@@ -479,7 +520,10 @@ const MetachessGame = (function () {
 
 		// Update UI
 		togglePlayerControls();
-		updateHands();
+		if (!playerColor) {
+			updateDecks();
+			updateHands();
+		}
 
 		if (!checkForValidMoves(currentTurn)) {
 			if (!playerColor) {
@@ -535,7 +579,10 @@ const MetachessGame = (function () {
 			fen: chess.fen() // Send the current board state
 		});
 
-		updateHands(); // Update hands to reflect the current state
+		if (!playerColor) {
+			updateDecks();
+			updateHands();
+		} // Update hands to reflect the current state
 
 		// The server will respond with redraw_update which will be handled by existing listeners
 	}
@@ -676,6 +723,7 @@ const MetachessGame = (function () {
 			checkForValidMoves,
 			startClock,
 			updateMaterialDisplay,
+			updateCardsUI,
 			highlightKingInCheck
 		};
 
@@ -692,7 +740,7 @@ const MetachessGame = (function () {
 
 	function initializeWithColor(color) {
 		// Initialize game state for specific color
-		currentTurn = 'white'; // Game always starts with white
+		//currentTurn = 'white'; // Game always starts with white
 		playerColor = color;
 
 		// Flip the board if player is black
@@ -715,7 +763,10 @@ const MetachessGame = (function () {
 		togglePlayerControls();
 
 		// Update the hands to hide opponent cards
-		updateHands();
+		if (!playerColor) {
+			updateDecks();
+			updateHands();
+		}
 	}
 
 	function updateClockOrientation() {
@@ -825,19 +876,6 @@ const MetachessGame = (function () {
 			updateClockDisplay();
 		}
 
-		// Synchronize the chess engine's internal state
-		const boardPosition = chess.fen().split(' ')[0];
-		const engineColor = currentTurn === 'white' ? 'w' : 'b';
-		const newFen = `${boardPosition} ${engineColor} KQkq - 0 1`;
-
-		// Reset the chess engine with the new position and turn
-		chess = new Chess(newFen);
-
-		// Update the board display
-		if (board) {
-			board.position(chess.fen());
-		}
-
 		updateMaterialDisplay();
 
 		// If using Stockfish, reset it with the new position
@@ -848,7 +886,10 @@ const MetachessGame = (function () {
 
 		// Update UI
 		togglePlayerControls();
-		updateHands();
+		if (!playerColor) {
+			updateDecks();
+			updateHands();
+		}
 		updateClockOrientation();
 
 		if (playerColor && currentTurn === playerColor && !checkForValidMoves(playerColor)) {
@@ -1301,8 +1342,10 @@ const MetachessGame = (function () {
 		blackHand = MetachessDeck.drawCards(blackDeck, 5);
 
 		// Update UI
-		updateDecks();
-		updateHands();
+		if (!playerColor) {
+			updateDecks();
+			updateHands();
+		}
 		updateClockDisplay();
 		updateBoardBorder();
 
@@ -1363,7 +1406,10 @@ const MetachessGame = (function () {
 		}
 
 		// Update UI to show empty hand
-		updateHands();
+		if (!playerColor) {
+			updateDecks();
+			updateHands();
+		}
 
 		// Add delay before redrawing
 		setTimeout(() => {
@@ -1375,8 +1421,10 @@ const MetachessGame = (function () {
 			}
 
 			// Update UI
-			updateDecks();
-			updateHands();
+			if (!playerColor) {
+				updateDecks();
+				updateHands();
+			}
 
 			// Play a sound
 			// Check if the new hand has valid moves
@@ -1622,6 +1670,7 @@ const MetachessGame = (function () {
 		passTurn,
 		resetGame,
 		gameOverWin,
+		updateCardsUI,
 		// New methods for testing
 		getCurrentTurn() {
 			return currentTurn;

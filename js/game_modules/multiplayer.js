@@ -77,19 +77,23 @@ export async function joinMultiplayer({
 	return false;
 }
 
-export function handlePassInMultiplayer({ playerColor, currentTurn, MetachessSocket, updateStatusMessage, disableAllControls }) {
+export function handlePassInMultiplayer({ playerColor, currentTurn, MetachessSocket, updateStatusMessage, disableAllControls, showPassIndicator, playSound }) {
 	if (!playerColor || currentTurn !== playerColor) {
 		updateStatusMessage("Not your turn");
 		return;
 	}
 
-	// Add detailed debug logging
 	console.log("Pass attempt details:", {
 		playerColor,
 		currentTurn,
 		gameId: MetachessSocket.gameId,
 		isConnected: MetachessSocket.getConnectionInfo().connected
 	});
+
+	// UI feedback
+	updateStatusMessage("Passing turn...");
+	disableAllControls();
+	if (showPassIndicator) showPassIndicator();
 
 	// Send pass message to server
 	const result = MetachessSocket.sendPass({
@@ -99,11 +103,7 @@ export function handlePassInMultiplayer({ playerColor, currentTurn, MetachessSoc
 
 	console.log("Pass message sent result:", result);
 
-	// Disable controls until server confirms the pass
-	disableAllControls();
-	updateStatusMessage("Passing turn...");
-
-	// Don't change any state here - wait for the server's pass_update message
+	// Do NOT update local deck/hand/turn here! Wait for server's pass_update.
 }
 
 export function storeGameSession(gameId, playerColor) {

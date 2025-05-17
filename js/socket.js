@@ -261,7 +261,6 @@ const MetachessSocket = (function () {
 			type: 'check_valid_moves',
 			gameId: data.gameId,
 			player: data.player,
-			fen: data.fen
 		}));
 
 		return true;

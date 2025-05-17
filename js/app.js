@@ -181,6 +181,10 @@ document.addEventListener('DOMContentLoaded', function () {
 		return result;
 	};
 
+	document.getElementById('pass-turn').addEventListener('click', function () {
+		MetachessGame.passTurn();
+	});
+
 	// Add this at the end of your DOMContentLoaded function
 	document.addEventListener('click', function (event) {
 		console.log('Document click detected on:', event.target);

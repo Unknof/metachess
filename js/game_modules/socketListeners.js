@@ -23,8 +23,6 @@ export function setupSocketListeners({
 	updateStatusMessage,
 	disableAllControls,
 	initializeWithColor,
-	updateDecks,
-	updateHands,
 	synchronizeGameState,
 	togglePlayerControls,
 	updateClockDisplay,
@@ -34,10 +32,27 @@ export function setupSocketListeners({
 	handleMultiplayerRedraw,
 	checkForValidMoves,
 	startClock,
-	highlightKingInCheck
+	highlightKingInCheck,
+	updateCardsUI
 }) {
 	let chess = getChess();
 	let board = getBoard();
+
+	function updateDeckAndHandFromServer(data) {
+		// Update decks
+		whiteDeck = Array.isArray(data.whiteDeck) ? data.whiteDeck : Array(data.whiteDeck).fill('?');
+		blackDeck = Array.isArray(data.blackDeck) ? data.blackDeck : Array(data.blackDeck).fill('?');
+
+		// Update hands based on player color
+		if (playerColor === 'white') {
+			whiteHand = Array.isArray(data.whiteHand) ? data.whiteHand : [];
+			updateCardsUI(whiteHand, whiteDeck, 'white');
+		} else if (playerColor === 'black') {
+			blackHand = Array.isArray(data.blackHand) ? data.blackHand : [];
+			updateCardsUI(blackHand, blackDeck, 'black');
+		}
+		currentTurn = data.currentTurn;
+	}
 	// Listen for game created event
 	MetachessSocket.on('game_created', (data) => {
 		MetachessGame.multiplayerInit(chess, board, data);
@@ -49,15 +64,7 @@ export function setupSocketListeners({
 		MetachessSocket.setGameInfo(data.gameId, data.playerColor);
 		playerColor = data.playerColor;  // This is important - set playerColor immediately
 
-		// Set initial deck and hand state
-		whiteDeck = Array.isArray(data.whiteDeck) ? data.whiteDeck : Array(data.whiteDeck).fill('?');
-		whiteHand = data.whiteHand;
-		blackDeck = Array.isArray(data.blackDeck) ? data.blackDeck : Array(data.blackDeck).fill('?');
-		blackHand = data.blackHand;
-
-		// Update UI
-		updateDecks();
-		updateHands();
+		updateDeckAndHandFromServer(data);
 
 		// Update UI to show waiting for opponent
 		updateStatusMessage('Waiting for opponent to join...');
@@ -91,6 +98,10 @@ export function setupSocketListeners({
 
 		// Toggle controls
 		togglePlayerControls();
+
+		updateDeckAndHandFromServer(data);
+
+
 	});
 
 	// ADD THIS HANDLER for game_joined event
@@ -124,10 +135,9 @@ export function setupSocketListeners({
 		// Initialize with player color
 		initializeWithColor(playerColor);
 
-		// Show notification
-		updateStatusMessage(
-			`You joined the game! You are playing as ${playerColor.toUpperCase()}`
-		);
+		updateDeckAndHandFromServer(data);
+
+
 
 		// Update game status
 		updateStatusMessage(
@@ -167,6 +177,10 @@ export function setupSocketListeners({
 		// Synchronize with server's game state
 		synchronizeGameState(data.currentTurn);
 
+		updateDeckAndHandFromServer(data);
+
+
+
 		// Status messages
 		updateStatusMessage('Opponent made a move');
 	});
@@ -199,7 +213,9 @@ export function setupSocketListeners({
 
 		// Synchronize with server's game state
 		synchronizeGameState(data.currentTurn);
-		updateHands();
+		updateDeckAndHandFromServer(data);
+
+
 
 		// Show pass indicator
 		showPassIndicator();
@@ -252,6 +268,10 @@ export function setupSocketListeners({
 
 		// Synchronize with server's game state
 		synchronizeGameState(data.currentTurn);
+
+		updateDeckAndHandFromServer(data);
+
+
 	});
 
 	// Add this to setupSocketListeners function
@@ -270,8 +290,9 @@ export function setupSocketListeners({
 		}
 
 		// Update UI
-		updateDecks();
-		updateHands();
+		updateDeckAndHandFromServer(data);
+
+
 
 		const isCurrentPlayer = data.redrawingPlayer === playerColor;
 		const playerText = isCurrentPlayer ? 'You have' : 'Opponent has';
@@ -356,15 +377,7 @@ export function setupSocketListeners({
 	// Add handler for reconnection_successful event
 	MetachessSocket.on('reconnection_successful', (data) => {
 		MetachessGame.multiplayerInit(chess, board, data);
-		console.log('Reconnection successful, restoring game state:', data);
-
-		console.log('Assigning deck/hand from server:', {
-			whiteDeck: data.whiteDeck,
-			whiteHand: data.whiteHand,
-			blackDeck: data.blackDeck,
-			blackHand: data.blackHand,
-			playerColor
-		});
+		console.log('[Reconnect] Server successful, currentTurn is:', data.currentTurn);
 
 		MetachessSocket.setGameInfo(data.gameId, data.playerColor);
 		playerColor = data.playerColor;
@@ -395,9 +408,8 @@ export function setupSocketListeners({
 			chess.load(data.fen);
 		}
 
-		// Update UI
-		updateDecks();
-		updateHands();
+
+
 		updateStatusMessage(`Reconnected as ${playerColor.toUpperCase()}`);
 
 		// Synchronize game state from server
@@ -421,6 +433,9 @@ export function setupSocketListeners({
 
 		// Enable or disable controls based on turn
 		togglePlayerControls();
+
+
+		updateDeckAndHandFromServer(data);
 
 		// Update board border to show current turn
 		updateBoardBorder(currentTurn);

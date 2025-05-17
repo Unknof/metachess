@@ -216,7 +216,8 @@ wss.on('connection', (socket) => {
 						whiteDeck: whiteDeck.length,
 						whiteHand: creatorColor === 'white' ? whiteHand : [],
 						blackDeck: blackDeck.length,
-						blackHand: creatorColor === 'black' ? blackHand : []
+						blackHand: creatorColor === 'black' ? blackHand : [],
+						currentTurn: 'white'
 					}));
 					break;
 
@@ -257,12 +258,19 @@ wss.on('connection', (socket) => {
 					}));
 
 					// Notify first player that opponent has joined
-					game.players[0].send(JSON.stringify({
+					const creatorSocket = game.players[0];
+					const creatorColor2 = game.creatorColor;
+
+					creatorSocket.send(JSON.stringify({
 						type: 'opponent_joined',
 						gameId: data.gameId,
 						opponentColor: game.joinerColor,
-						creatorColor: game.creatorColor,  // Add this line
-						currentTurn: game.currentTurn
+						creatorColor: creatorColor2,
+						currentTurn: game.currentTurn,
+						whiteDeck: game.whiteDeck.length,
+						whiteHand: creatorColor2 === 'white' ? game.whiteHand : [],
+						blackDeck: game.blackDeck.length,
+						blackHand: creatorColor2 === 'black' ? game.blackHand : []
 					}));
 					break;
 
@@ -312,10 +320,8 @@ wss.on('connection', (socket) => {
 					// Store move
 					gameMove.moves.push(data.move);
 					gameMove.currentTurn = data.player === 'white' ? 'black' : 'white';
-
-					if (data.fen) {
-						gameMove.fen = data.fen;
-					}
+					const Movechess = new Chess(gameMove.fen === 'start' ? undefined : gameMove.fen);
+					gameMove.fen = Movechess.fen();
 
 					// Broadcast move to the other player
 					gameMove.players.forEach(client => {
