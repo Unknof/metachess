@@ -324,7 +324,13 @@ wss.on('connection', (socket) => {
 					// Always reconstruct FEN from move history
 					let moveChess = new Chess();
 					for (const move of gameMove.moves) {
-						moveChess.move(move);
+						try {
+							// Only pass the fields chess.js expects
+							moveChess.move({ from: move.from, to: move.to, promotion: move.promotion });
+						} catch (e) {
+							// Optionally log or just ignore
+							// console.warn('Ignored invalid move:', move, e);
+						}
 					}
 					gameMove.fen = moveChess.fen();
 
@@ -450,11 +456,18 @@ wss.on('connection', (socket) => {
 
 					let passchess = new Chess();
 					for (const move of gamePass.moves) {
-						passchess.move(move);
+						try {
+							// Only pass the fields chess.js expects
+							passchess.move({ from: move.from, to: move.to, promotion: move.promotion });
+						} catch (e) {
+							// Optionally log or just ignore
+							// console.warn('Ignored invalid move:', move, e);
+						}
 					}
 					// Now set the turn in the FEN string
 					let fenParts = passchess.fen().split(' ');
 					fenParts[1] = gamePass.currentTurn === 'white' ? 'w' : 'b';
+					fenParts[3] = '-'; // Clear en passant
 					gamePass.fen = fenParts.join(' ');
 					console.log("Updated FEN after pass:", gamePass.fen);
 
