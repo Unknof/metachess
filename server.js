@@ -1,15 +1,12 @@
 // server.js (create this in your project root)
-import { Chess } from 'chess.js';
-import express from 'express';
-import http from 'http';
-import { WebSocketServer } from 'ws';
-import { v4 as uuidv4 } from 'uuid';
-import path from 'path';
-import { fileURLToPath } from 'url'; // <-- Add this line
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const express = require('express');
 const app = express();
+const http = require('http');
+const WebSocket = require('ws');
+const { v4: uuidv4 } = require('uuid');
+const path = require('path');
+const { Chess } = require('chess.js');
+
 const DEFAULT_TIME_SECONDS = 180; // 3 minutes
 const INCREMENT_SECONDS = 2;      // 2 second increment
 // Add CORS headers
@@ -26,7 +23,7 @@ app.use(express.static(__dirname));
 const server = http.createServer(app);
 
 // Create WebSocket server using the HTTP server
-const wss = new WebSocketServer({ server });
+const wss = new WebSocket.Server({ server });
 // Add near the top of your file, after other constants
 const TIME_UPDATE_INTERVAL = 1000; // Send updates every second
 const activeTimers = new Set();
