@@ -196,7 +196,7 @@ const MetachessSocket = (function () {
 			type: 'pass',
 			player: data.player,
 			gameId: data.gameId,
-			fen: chess.fen()
+			//fen: chess.fen()
 		}));
 
 		return true;

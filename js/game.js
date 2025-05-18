@@ -25,7 +25,6 @@ const MetachessGame = (function () {
 	let currentTurn = 'white'; // white or black
 	let gameOver = false;
 	let board = null;
-	let chess = null;
 
 	let selectedCard = null;
 	let engineInitialized = false;
@@ -360,7 +359,7 @@ const MetachessGame = (function () {
 				updateStatusMessage("Invalid piece type!");
 				return;
 			}
-
+			console.log("local fen:", chess.fen());
 			MetachessEngine.getBestMoveForPieceType(chess.fen(), enginePieceType)
 				.then(moveStr => {
 					console.log("Engine returned move for", pieceType + ":", moveStr);
@@ -498,16 +497,20 @@ const MetachessGame = (function () {
 		const nextColor = currentTurn === 'white' ? 'w' : 'b'; // Chess.js uses 'w'/'b' for colors
 
 		// Create new FEN with correct turn, castling rights, etc.
-		const newFen = `${boardPosition} ${nextColor} KQkq - 0 1`; // Reset castling, en passant, and move counters
+		if (playerColor) {
+			const newFen = `${boardPosition} ${nextColor} KQkq - 0 1`; // Reset castling, en passant, and move counters
 
-		// Completely reset the chess engine with the new position and turn
-		chess = new Chess(newFen);
+			// Completely reset the chess engine with the new position and turn
+			chess = new Chess(newFen);
 
-		// Update the board display
-		if (board) {
-			board.position(chess.fen());
-			highlightKingInCheck(); // Add this line
+			// Update the board display
+			if (board) {
+				board.position(chess.fen());
+
+			}
 		}
+		highlightKingInCheck();
+
 		if (checkForCheckmate()) {
 			return; // Game is over, exit switchTurn
 		}
@@ -570,13 +573,11 @@ const MetachessGame = (function () {
 		console.log("Sending redraw request to server with data:", {
 			player: playerColor,
 			gameId: MetachessSocket.gameId,
-			fen: chess.fen()
 		});
 		// Send redraw request to server with current board state
 		MetachessSocket.sendCheckValidMoves({
 			player: playerColor,
 			gameId: MetachessSocket.gameId,
-			fen: chess.fen() // Send the current board state
 		});
 
 		if (!playerColor) {
@@ -822,6 +823,8 @@ const MetachessGame = (function () {
 		const isCapture = targetSquare !== null;
 
 		// Make the move on the chess board
+
+
 		const move = chess.move({
 			from: from,
 			to: to,

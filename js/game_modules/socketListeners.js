@@ -2,7 +2,7 @@
  * Socket event listeners for MetaChess multiplayer functionality
  */
 
-import { MetachessGame } from '../game.js';
+import { MetachessGame, setChessAndBoard } from '../game.js';
 import { getChess, getBoard } from '../game.js';
 
 export function setupSocketListeners({
@@ -35,7 +35,6 @@ export function setupSocketListeners({
 	highlightKingInCheck,
 	updateCardsUI
 }) {
-	let chess = getChess();
 	let board = getBoard();
 
 	function updateDeckAndHandFromServer(data) {
@@ -55,7 +54,7 @@ export function setupSocketListeners({
 	}
 	// Listen for game created event
 	MetachessSocket.on('game_created', (data) => {
-		MetachessGame.multiplayerInit(chess, board, data);
+		MetachessGame.multiplayerInit(getChess(), board, data);
 		const newUrl = new URL(window.location);
 		newUrl.searchParams.set('game', data.gameId);
 		window.history.pushState({}, '', newUrl);
@@ -109,7 +108,7 @@ export function setupSocketListeners({
 		console.log('Game joined:', data);
 
 		// Set game ID and player color
-		MetachessGame.multiplayerInit(chess, board, data);
+		MetachessGame.multiplayerInit(getChess(), board, data);
 		MetachessSocket.setGameInfo(data.gameId, data.playerColor);
 		playerColor = data.playerColor;
 
@@ -187,7 +186,7 @@ export function setupSocketListeners({
 
 	// Update your pass_update handler
 	MetachessSocket.on('pass_update', (data) => {
-		console.log('Pass update received:', data);
+		//console.log('Pass update received:', data);
 
 		// Update decks and hands
 		whiteDeck = Array.isArray(data.whiteDeck) ? data.whiteDeck : Array(data.whiteDeck).fill('?');
@@ -209,6 +208,16 @@ export function setupSocketListeners({
 			if (!timeControl.started) startClock();
 
 			updateClockDisplay();
+		}
+		if (data.fen && data.fen !== 'start') {
+			console.log('Socketlistener Updating board with FEN after pass:', data.fen);
+
+			try {
+				getChess().load(data.fen);
+			} catch (e) {
+				console.error(e)
+			}
+			console.log('FEN after getChess().load:', getChess().fen());
 		}
 
 		// Synchronize with server's game state
@@ -376,7 +385,7 @@ export function setupSocketListeners({
 
 	// Add handler for reconnection_successful event
 	MetachessSocket.on('reconnection_successful', (data) => {
-		MetachessGame.multiplayerInit(chess, board, data);
+		MetachessGame.multiplayerInit(getChess(), board, data);
 		console.log('[Reconnect] Server successful, currentTurn is:', data.currentTurn);
 
 		MetachessSocket.setGameInfo(data.gameId, data.playerColor);
@@ -405,7 +414,8 @@ export function setupSocketListeners({
 
 		// Set up board with the current FEN
 		if (data.fen && data.fen !== 'start') {
-			chess.load(data.fen);
+			console.log('Socketlistener Updating board with FEN after reconnect:', data.fen);
+			getChess().load(data.fen);
 		}
 
 
@@ -418,7 +428,7 @@ export function setupSocketListeners({
 
 		// Reset board to match FEN
 		if (board) {
-			board.position(chess.fen());
+			board.position(getChess().fen());
 		}
 
 		// Initialize with player color to set up pieces correctly

@@ -1,12 +1,15 @@
 // server.js (create this in your project root)
-const express = require('express');
-const app = express();
-const http = require('http');
-const WebSocket = require('ws');
-const { v4: uuidv4 } = require('uuid');
-const path = require('path');
-const { Chess } = require('./lib/chess.js');
+import { Chess } from 'chess.js';
+import express from 'express';
+import http from 'http';
+import { WebSocketServer } from 'ws';
+import { v4 as uuidv4 } from 'uuid';
+import path from 'path';
+import { fileURLToPath } from 'url'; // <-- Add this line
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const app = express();
 const DEFAULT_TIME_SECONDS = 180; // 3 minutes
 const INCREMENT_SECONDS = 2;      // 2 second increment
 // Add CORS headers
@@ -23,7 +26,7 @@ app.use(express.static(__dirname));
 const server = http.createServer(app);
 
 // Create WebSocket server using the HTTP server
-const wss = new WebSocket.Server({ server });
+const wss = new WebSocketServer({ server });
 // Add near the top of your file, after other constants
 const TIME_UPDATE_INTERVAL = 1000; // Send updates every second
 const activeTimers = new Set();
@@ -320,8 +323,13 @@ wss.on('connection', (socket) => {
 					// Store move
 					gameMove.moves.push(data.move);
 					gameMove.currentTurn = data.player === 'white' ? 'black' : 'white';
-					const Movechess = new Chess(gameMove.fen === 'start' ? undefined : gameMove.fen);
-					gameMove.fen = Movechess.fen();
+
+					// Always reconstruct FEN from move history
+					let moveChess = new Chess();
+					for (const move of gameMove.moves) {
+						moveChess.move(move);
+					}
+					gameMove.fen = moveChess.fen();
 
 					// Broadcast move to the other player
 					gameMove.players.forEach(client => {
@@ -443,6 +451,16 @@ wss.on('connection', (socket) => {
 					// Switch turn
 					gamePass.currentTurn = passingPlayer === 'white' ? 'black' : 'white';
 
+					let passchess = new Chess();
+					for (const move of gamePass.moves) {
+						passchess.move(move);
+					}
+					// Now set the turn in the FEN string
+					let fenParts = passchess.fen().split(' ');
+					fenParts[1] = gamePass.currentTurn === 'white' ? 'w' : 'b';
+					gamePass.fen = fenParts.join(' ');
+					console.log("Updated FEN after pass:", gamePass.fen);
+
 					// Notify both players about the pass
 					gamePass.players.forEach(client => {
 						if (client.readyState === WebSocket.OPEN) {
@@ -460,13 +478,11 @@ wss.on('connection', (socket) => {
 									white: gamePass.timeControl.white,
 									black: gamePass.timeControl.black
 								},
-								currentTurn: gamePass.currentTurn
+								currentTurn: gamePass.currentTurn,
+								fen: gamePass.fen // Send the updated FEN
 							}));
 						}
 					});
-					if (data.fen) {
-						gamePass.fen = data.fen;
-					}
 					break;
 
 
@@ -699,12 +715,8 @@ wss.on('connection', (socket) => {
 						}));
 						return;
 					}
+					console.log('server fen after reconnect: ', gameToReconnect.fen);
 
-					let chess = new Chess();
-					for (const move of gameToReconnect.moves) {
-						chess.move(move);
-					}
-					const fen = chess.fen();
 					let reconnectPayload;
 					if (reconnectingPlayerColor === 'white') {
 						reconnectPayload = {
@@ -712,7 +724,7 @@ wss.on('connection', (socket) => {
 							gameId: data.gameId,
 							playerColor: 'white',
 							currentTurn: gameToReconnect.currentTurn,
-							fen,
+							fen: gameToReconnect.fen,
 							whiteDeck: gameToReconnect.whiteDeck, // full array
 							whiteHand: gameToReconnect.whiteHand,
 							blackDeck: gameToReconnect.blackDeck.length, // only size
@@ -725,7 +737,7 @@ wss.on('connection', (socket) => {
 							gameId: data.gameId,
 							playerColor: 'black',
 							currentTurn: gameToReconnect.currentTurn,
-							fen,
+							fen: gameToReconnect.fen,
 							whiteDeck: gameToReconnect.whiteDeck.length, // only size
 							whiteHand: [],
 							blackDeck: gameToReconnect.blackDeck, // full array

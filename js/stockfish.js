@@ -9,7 +9,7 @@ const MetachessEngine = (function () {
 			engine = new Worker('js/stockfish-engine.js');
 
 			engine.addEventListener('message', function (e) {
-				console.log("Stockfish: " + e.data);
+				//console.log("Stockfish: " + e.data);
 
 				// Parse response
 				if (e.data === "readyok") {
@@ -100,9 +100,9 @@ const MetachessEngine = (function () {
 						// Also capture seldepth if available
 						if (selDepthMatch && selDepthMatch[1]) {
 							currentSelDepth = parseInt(selDepthMatch[1]);
-							console.log(`Search progress: depth ${currentDepth}, selective depth ${currentSelDepth}`);
+							//console.log(`Search progress: depth ${currentDepth}, selective depth ${currentSelDepth}`);
 						} else {
-							console.log(`Search progress: depth ${currentDepth}`);
+							//console.log(`Search progress: depth ${currentDepth}`);
 						}
 
 						// Stop if EITHER regular depth or selective depth targets are met
