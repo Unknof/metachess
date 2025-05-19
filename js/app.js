@@ -9,7 +9,7 @@ console.log('App version running on port: ' + window.location.port);
 // Wait for DOM to be fully loaded before initializing
 document.addEventListener('DOMContentLoaded', function () {
 	console.log('MetaChess app initialized');
-	console.log('DOM Content Loaded - Starting to attach event handlers');
+	//console.log('DOM Content Loaded - Starting to attach event handlers');
 
 	// Initialize the chessboard
 	const { chess, board } = MetachessBoard.init('chessboard');
@@ -212,7 +212,4 @@ document.addEventListener('DOMContentLoaded', function () {
 			// Rest of the code using waitingModalStyle
 		}
 	});
-
-	console.log('Checking for CSS conflicts');
-
 });

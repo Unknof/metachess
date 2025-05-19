@@ -327,12 +327,14 @@ wss.on('connection', (socket) => {
 						try {
 							// Only pass the fields chess.js expects
 							moveChess.move({ from: move.from, to: move.to, promotion: move.promotion });
+							console.log("Move:", move.from, move.to, move.promotion);
 						} catch (e) {
 							// Optionally log or just ignore
 							// console.warn('Ignored invalid move:', move, e);
 						}
 					}
 					gameMove.fen = moveChess.fen();
+					//console.log("Server Updated FEN after move:", gameMove.fen);
 
 					// Broadcast move to the other player
 					gameMove.players.forEach(client => {
