@@ -32,22 +32,6 @@ header {
 	position: relative;
 }
 
-/* Spacer for layout */
-.spacer {
-	flex: 0 0 auto;
-	width: 110px;
-	min-width: 110px;
-	max-width: 110px;
-	height: 36px;
-	line-height: 24px;
-	margin: 0 4px;
-	padding: 6px 12px;
-	box-sizing: border-box;
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	text-align: center;
-}
 
 /* Deck info - fixed size instead of stretching */
 .deck-info {
@@ -89,7 +73,7 @@ header {
 .pass-button,
 .multiplayer-button,
 .spacer,
-#menu-button {
+.menu-button {
 	/* Fixed width instead of stretching */
 	width: 110px;
 	/* Fixed width that fits content */
@@ -120,7 +104,7 @@ header {
 .timer,
 .pass-button,
 .multiplayer-button,
-#menu-button {
+.menu-button {
 	background: var(--button-bg, #4a90e2);
 	color: white;
 	border: none;
@@ -314,7 +298,8 @@ header {
 }
 
 /* Pass button next to deck info, not absolute */
-.pass-button {
+.pass-button,
+.menu-button {
 	position: static;
 	padding: 6px 12px;
 	font-size: 15px;

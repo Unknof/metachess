@@ -30,8 +30,8 @@
 	}
 
 	#chessboard {
-		width: 100% !important;
-		max-width: 100% !important;
+		width: 92% !important;
+		max-width: 92% !important;
 		height: auto !important;
 		aspect-ratio: 1 / 1;
 		display: block;
@@ -140,7 +140,7 @@
 	.timer,
 	.pass-button,
 	.multiplayer-button,
-	.spacer {
+	.menu-button {
 		width: 90px;
 		/* Smaller on mobile */
 		min-width: 90px;
