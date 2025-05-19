@@ -321,18 +321,17 @@ wss.on('connection', (socket) => {
 					gameMove.moves.push(data.move);
 					gameMove.currentTurn = data.player === 'white' ? 'black' : 'white';
 
-					// Always reconstruct FEN from move history
+					let fen = gameMove.fen === 'start'
+						? 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
+						: gameMove.fen;
+
 					let moveChess = new Chess();
-					for (const move of gameMove.moves) {
-						try {
-							// Only pass the fields chess.js expects
-							moveChess.move({ from: move.from, to: move.to, promotion: move.promotion });
-							console.log("Move:", move.from, move.to, move.promotion);
-						} catch (e) {
-							// Optionally log or just ignore
-							// console.warn('Ignored invalid move:', move, e);
-						}
-					}
+					moveChess.load(fen);
+					console.log("FEN before move:", fen);
+					moveChess.move({ from: data.move.from, to: data.move.to, promotion: data.move.promotion });
+					console.log("FEN after move:", moveChess.fen());
+
+
 					gameMove.fen = moveChess.fen();
 					//console.log("Server Updated FEN after move:", gameMove.fen);
 
@@ -348,7 +347,8 @@ wss.on('connection', (socket) => {
 								whiteDeck: gameMove.whiteDeck.length,
 								whiteHand: playerColor === 'white' ? gameMove.whiteHand : [], // Only send white hand to white player
 								blackDeck: gameMove.blackDeck.length,
-								blackHand: playerColor === 'black' ? gameMove.blackHand : [], // Only send black hand to black player
+								blackHand: playerColor === 'black' ? gameMove.blackHand : [],
+								fen: gameMove.fen,
 								timeControl: {
 									white: gameMove.timeControl.white,
 									black: gameMove.timeControl.black
@@ -458,13 +458,9 @@ wss.on('connection', (socket) => {
 
 					let passchess = new Chess();
 					for (const move of gamePass.moves) {
-						try {
-							// Only pass the fields chess.js expects
-							passchess.move({ from: move.from, to: move.to, promotion: move.promotion });
-						} catch (e) {
-							// Optionally log or just ignore
-							// console.warn('Ignored invalid move:', move, e);
-						}
+						// Only pass the fields chess.js expects
+						console.log("Move:", move.from, move.to, move.promotion);
+						passchess.move({ from: move.from, to: move.to, promotion: move.promotion });
 					}
 					// Now set the turn in the FEN string
 					let fenParts = passchess.fen().split(' ');

@@ -212,11 +212,7 @@ export function setupSocketListeners({
 		if (data.fen && data.fen !== 'start') {
 			console.log('Socketlistener Updating board with FEN after pass:', data.fen);
 
-			try {
-				getChess().load(data.fen);
-			} catch (e) {
-				console.error(e)
-			}
+			getChess().load(data.fen);
 			console.log('FEN after getChess().load:', getChess().fen());
 		}
 
