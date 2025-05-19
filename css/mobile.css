@@ -9,8 +9,9 @@
 		height: 100vh;
 		width: 100%;
 		gap: 1px;
-		padding-bottom: 15vh !important;
-		min-height: calc(100vh + 15vh) !important;
+		padding-bottom: 18vh !important;
+		/* Increase if needed for more gap */
+		min-height: calc(100vh + 18vh) !important;
 	}
 
 	/* Distribute vertical space */
@@ -62,9 +63,9 @@
 		width: 100%;
 		padding: 0 !important;
 		margin: 0 !important;
-		height: 14vh !important;
+		height: 12vh !important;
 		/* Dynamic height based on viewport */
-		min-height: 14vh !important;
+		min-height: 12vh !important;
 		/* Minimum fallback height */
 		margin-bottom: 2vh !important;
 		overflow-x: hidden;
@@ -78,10 +79,8 @@
 	/* Card sizing - even smaller */
 	.piece-card {
 		width: 18% !important;
-		height: 100% !important;
+		height: 90% !important;
 		/* Fill the container height */
-		margin: 0 !important;
-		padding: 0 !important;
 		border-width: 1px !important;
 		box-sizing: border-box !important;
 		display: flex;
@@ -152,15 +151,10 @@
 		font-size: 12px;
 	}
 
-	.deck-info {
-		font-size: 11px;
-		/* Slightly smaller for deck info */
-	}
-
 	/* Add safe area padding for iOS devices */
 	@supports (padding: max(0px)) {
 		.container {
-			padding-bottom: max(15vh, env(safe-area-inset-bottom) + 10vh) !important;
+			padding-bottom: max(18vh, env(safe-area-inset-bottom) + 12vh) !important;
 		}
 	}
 
