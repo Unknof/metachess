@@ -1,4 +1,5 @@
 // server.js (create this in your project root)
+require('dotenv').config();
 const express = require('express');
 const app = express();
 const http = require('http');
@@ -6,6 +7,13 @@ const WebSocket = require('ws');
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
 const { Chess } = require('chess.js');
+const { MongoClient } = require('mongodb');
+const uri = process.env.MONGODB_URI;
+if (!uri) {
+	console.error('MONGODB_URI is not set! Please set it in your environment or .env file.');
+	process.exit(1);
+}
+const client = new MongoClient(uri);
 
 const DEFAULT_TIME_SECONDS = 180; // 3 minutes
 const INCREMENT_SECONDS = 2;      // 2 second increment
@@ -14,6 +22,37 @@ app.use((req, res, next) => {
 	res.header('Access-Control-Allow-Origin', '*');
 	res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
 	next();
+});
+app.use(express.json());
+
+app.post('/api/register', async (req, res) => {
+	try {
+		const { username, email, password, playerId } = req.body;
+		if (!username || !email || !password || !playerId) {
+			return res.status(400).json({ error: 'Missing required fields' });
+		}
+
+		const db = client.db('metachess');
+		const users = db.collection('users');
+
+		// Check for existing user
+		const existing = await users.findOne({ $or: [{ email }, { username }, { playerId }] });
+		if (existing) {
+			return res.status(409).json({ error: 'User already exists' });
+		}
+
+		// Hash password (use bcrypt)
+		const bcrypt = require('bcrypt');
+		const hashedPassword = await bcrypt.hash(password, 10);
+
+		const user = { username, email, password: hashedPassword, playerId };
+		await users.insertOne(user);
+
+		res.status(201).json({ message: 'User registered successfully' });
+	} catch (err) {
+		console.error(err);
+		res.status(500).json({ error: 'Internal server error' });
+	}
 });
 
 // Serve static files
@@ -364,16 +403,22 @@ wss.on('connection', (socket) => {
 					});
 
 					if (moveChess.isCheckmate()) {
-						handleGameOver(gameMove, 'checkmate', currentTurn);
+						handleGameOver(gameMove, 'checkmate', gameMove.currentTurn);
 						return;
 					}
 
-					const targetSquare = moveChess.get(data.move.to);
-					const isKingCapture = targetSquare && targetSquare.type === 'k';
-					if (isKingCapture) {
-						handleGameOver(gameMove, 'king_capture', currentTurn);
+					const targetBeforeMove = moveChess.get(data.move.to);
+					const isOpponentKing =
+						targetBeforeMove &&
+						targetBeforeMove.type === 'k' &&
+						targetBeforeMove.color !== data.player[0]; // 'w' or 'b'
+
+
+					if (isOpponentKing) {
+						handleGameOver(gameMove, 'king_capture', data.player);
 						return;
 					}
+
 
 					// Send updated hand to the current player
 					socket.send(JSON.stringify({
@@ -473,14 +518,7 @@ wss.on('connection', (socket) => {
 					// Switch turn
 					gamePass.currentTurn = passingPlayer === 'white' ? 'black' : 'white';
 
-					let passchess = new Chess();
-					for (const move of gamePass.moves) {
-						// Only pass the fields chess.js expects
-						console.log("Move:", move.from, move.to, move.promotion);
-						passchess.move({ from: move.from, to: move.to, promotion: move.promotion });
-					}
-					// Now set the turn in the FEN string
-					let fenParts = passchess.fen().split(' ');
+					let fenParts = gamePass.fen.split(' ');
 					fenParts[1] = gamePass.currentTurn === 'white' ? 'w' : 'b';
 					fenParts[3] = '-'; // Clear en passant
 					gamePass.fen = fenParts.join(' ');
@@ -565,8 +603,18 @@ wss.on('connection', (socket) => {
 								return true;
 							}
 						}
-
-						// No valid moves found for any card
+						gameCheck.players.forEach(client => {
+							if (client.playerColor === checkingPlayer && client.readyState === WebSocket.OPEN) {
+								client.send(JSON.stringify({
+									type: 'redraw_update',
+									redrawingPlayer: checkingPlayer,
+									whiteDeck: gameCheck.whiteDeck.length,
+									whiteHand: checkingPlayer === 'white' ? gameCheck.whiteHand : [],
+									blackDeck: gameCheck.blackDeck.length,
+									blackHand: checkingPlayer === 'black' ? gameCheck.blackHand : [],
+								}));
+							}
+						});
 						return false;
 					};
 

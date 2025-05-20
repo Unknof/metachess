@@ -10,7 +10,44 @@ console.log('App version running on port: ' + window.location.port);
 document.addEventListener('DOMContentLoaded', function () {
 	console.log('MetaChess app initialized');
 	//console.log('DOM Content Loaded - Starting to attach event handlers');
+	const mainMenuLanding = document.getElementById('main-menu-landing');
+	if (mainMenuLanding) {
+		mainMenuLanding.style.display = 'flex';
+	}
 
+	const versusBtn = document.getElementById('main-menu-versus');
+	if (versusBtn) {
+		versusBtn.addEventListener('click', function () {
+			if (mainMenuLanding) mainMenuLanding.style.display = 'none';
+			// ...existing versus logic...
+			Multiplayer.clearGameSession();
+			document.getElementById('multiplayer-modal').style.display = 'none';
+			MetachessGame.createMultiplayer()
+				.then(() => {
+					setTimeout(() => {
+						MetachessSocket.createGame();
+					}, 500);
+				})
+				.catch(err => {
+					console.error('Failed to initialize multiplayer:', err);
+					document.getElementById('status-message').textContent = 'Failed to create game. Please try again.';
+				});
+		});
+	}
+
+	// Settings and Profile buttons: placeholder handlers
+	const settingsBtn = document.getElementById('main-menu-settings');
+	if (settingsBtn) {
+		settingsBtn.addEventListener('click', function () {
+			alert('Settings coming soon!');
+		});
+	}
+	const profileBtn = document.getElementById('main-menu-profile');
+	if (profileBtn) {
+		profileBtn.addEventListener('click', function () {
+			alert('Profile coming soon!');
+		});
+	}
 	// Initialize the chessboard
 	const { chess, board } = MetachessBoard.init('chessboard');
 	setChessAndBoard({ chess, board });
@@ -105,13 +142,20 @@ document.addEventListener('DOMContentLoaded', function () {
 	const urlGameId = urlParams.get('game');
 	const storedSession = Multiplayer.getStoredGameSession();
 
-	if (storedSession || urlGameId) {
-		console.log('Attempting to connect to multiplayer game with urlGameId:', urlGameId, ' and storedSession ', storedSession);
-		MetachessGame.joinMultiplayer({ storedSession, urlGameId });
-	} else {
-		console.log('No multiplayer session or gameId in URL. Showing main menu.');
-		// Optionally show a message or main menu here
+	async function tryJoinMultiplayer() {
+		let joined = false;
+		if (storedSession || urlGameId) {
+			console.log('Attempting to connect to multiplayer game with urlGameId:', urlGameId, ' and storedSession ', storedSession);
+			if (mainMenuLanding) mainMenuLanding.style.display = 'none';
+			joined = await MetachessGame.joinMultiplayer({ storedSession, urlGameId });
+		}
+		if (!joined) {
+			console.log('No multiplayer session or gameId in URL or join failed. Showing main menu.');
+			if (mainMenuLanding) mainMenuLanding.style.display = 'flex';
+		}
 	}
+
+	tryJoinMultiplayer();
 
 
 
