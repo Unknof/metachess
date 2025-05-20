@@ -73,21 +73,7 @@ function startGameTimer(gameId) {
 				const winner = game.currentTurn === 'white' ? 'black' : 'white';
 
 				// Notify both players
-				game.players.forEach(client => {
-					if (client.readyState === WebSocket.OPEN) {
-						client.send(JSON.stringify({
-							type: 'time_out',
-							player: game.currentTurn,
-							winner: winner
-						}));
-					}
-				});
-
-				// Stop the timer
-				clearInterval(gameTimerId);
-				activeTimers.delete(gameId);
-				game.gameOver = true;
-				delete games[gameId];
+				handleGameOver(game, 'timeout', game.currentTurn, winner);
 				return;
 			}
 
@@ -146,6 +132,25 @@ function drawCards(deck, count = 1) {
 		drawn.push(deck.pop());
 	}
 	return drawn;
+}
+
+function handleGameOver(game, reason, winner) {
+
+	game.gameOver = true;
+	activeTimers.delete(game.id);
+
+	// Notify both players
+	game.players.forEach(client => {
+		if (client.readyState === WebSocket.OPEN) {
+			client.send(JSON.stringify({
+				type: 'game_over',
+				reason,
+				winner
+			}));
+		}
+	});
+	delete games[game.id];
+
 }
 
 // Games storage
@@ -357,6 +362,18 @@ wss.on('connection', (socket) => {
 							}));
 						}
 					});
+
+					if (moveChess.isCheckmate()) {
+						handleGameOver(gameMove, 'checkmate', currentTurn);
+						return;
+					}
+
+					const targetSquare = moveChess.get(data.move.to);
+					const isKingCapture = targetSquare && targetSquare.type === 'k';
+					if (isKingCapture) {
+						handleGameOver(gameMove, 'king_capture', currentTurn);
+						return;
+					}
 
 					// Send updated hand to the current player
 					socket.send(JSON.stringify({
@@ -771,6 +788,13 @@ wss.on('connection', (socket) => {
 							}));
 						}
 					});
+					break;
+
+				case 'resign':
+					const gameResign = games[data.gameId];
+					if (!gameResign) return;
+					const winner = data.player === 'white' ? 'black' : 'white';
+					handleGameOver(gameResign, 'resignation', winner);
 					break;
 
 				case 'heartbeat':

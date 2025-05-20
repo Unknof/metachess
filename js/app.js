@@ -137,9 +137,17 @@ document.addEventListener('DOMContentLoaded', function () {
 			document.getElementById('concede-confirm-modal').style.display = 'none';
 			// Determine the conceding player
 			const concedingPlayer = MetachessGame.getCurrentTurn ? MetachessGame.getCurrentTurn() : 'white';
-			MetachessGame.gameOverWin(concedingPlayer, 'resignation');
-			// Optionally notify opponent if multiplayer
-			// (You may need to expose MetachessSocket and playerColor if needed)
+
+			// If in multiplayer, send resign message to server
+			if (MetachessSocket && MetachessSocket.isConnected() && MetachessSocket.gameId) {
+				MetachessSocket.sendResign && MetachessSocket.sendResign({
+					gameId: MetachessSocket.gameId,
+					player: concedingPlayer
+				});
+			} else {
+				// Local game: just end locally
+				MetachessGame.gameOverWin(concedingPlayer, 'resignation');
+			}
 		});
 	}
 

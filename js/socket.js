@@ -1,4 +1,25 @@
-// WebSocket handling for multiplayer functionality
+// --- Cookie-based player ID helpers ---
+function setCookie(name, value, days = 365) {
+	const expires = new Date(Date.now() + days * 864e5).toUTCString();
+	document.cookie = name + '=' + encodeURIComponent(value) + '; expires=' + expires + '; path=/';
+}
+
+function getCookie(name) {
+	return document.cookie.split('; ').reduce((r, v) => {
+		const parts = v.split('=');
+		return parts[0] === name ? decodeURIComponent(parts[1]) : r
+	}, '');
+}
+
+function getOrCreatePlayerId() {
+	let playerId = getCookie('metachess_player_id');
+	if (!playerId) {
+		playerId = 'player_' + Math.random().toString(36).substring(2, 15);
+		setCookie('metachess_player_id', playerId);
+	}
+	return playerId;
+}
+// --- End cookie helpers ---
 
 const MetachessSocket = (function () {
 	let socket = null;
@@ -18,12 +39,8 @@ const MetachessSocket = (function () {
 		`wss://${window.location.host}`) {
 		return new Promise((resolve, reject) => {
 			try {
-				// Get player ID from localStorage
-				const playerId = localStorage.getItem('metachess_player_id') ||
-					'player_' + Math.random().toString(36).substring(2, 15);
-
-				// Store it in case it's new
-				localStorage.setItem('metachess_player_id', playerId);
+				// Get player ID from cookie
+				const playerId = getOrCreatePlayerId();
 
 				// Close existing socket if it exists
 				if (socket) {
@@ -131,7 +148,7 @@ const MetachessSocket = (function () {
 
 		socket.send(JSON.stringify({
 			type: 'create_game',
-			playerId: localStorage.getItem('metachess_player_id')
+			playerId: getOrCreatePlayerId()
 		}));
 
 		return true;
@@ -143,7 +160,7 @@ const MetachessSocket = (function () {
 		socket.send(JSON.stringify({
 			type: 'join_game',
 			gameId: id,
-			playerId: localStorage.getItem('metachess_player_id')
+			playerId: getOrCreatePlayerId()
 		}));
 
 		return true;
@@ -243,7 +260,7 @@ const MetachessSocket = (function () {
 			socket.send(JSON.stringify({
 				type: 'reconnect',
 				gameId: gameId,
-				playerId: localStorage.getItem('metachess_player_id')
+				playerId: getOrCreatePlayerId()
 			}));
 
 			return true;
@@ -275,6 +292,21 @@ const MetachessSocket = (function () {
 		return true;
 	}
 
+	function sendResign(data) {
+		if (!socket || socket.readyState !== WebSocket.OPEN) {
+			console.error("Cannot send resign: Socket not connected");
+			return false;
+		}
+
+		socket.send(JSON.stringify({
+			type: 'resign',
+			gameId: data.gameId,
+			player: data.player
+		}));
+
+		return true;
+	}
+
 	function off(eventType, callback) {
 		if (callbacks[eventType] === callback) {
 			delete callbacks[eventType];
@@ -298,6 +330,7 @@ const MetachessSocket = (function () {
 		sendGameOver,
 		sendCheckValidMoves,
 		setChessInstance,
+		sendResign,
 		isConnected() {
 			return socket && socket.readyState === WebSocket.OPEN;
 		},
