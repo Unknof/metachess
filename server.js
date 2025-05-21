@@ -157,6 +157,17 @@ function createDeck(color) {
 	return shuffleDeck([...deck]);
 }
 
+function getDeckComposition(deck) {
+	const composition = { p: 0, n: 0, b: 0, r: 0, q: 0, k: 0 };
+	for (const card of deck) {
+		const lower = card.toLowerCase();
+		if (composition.hasOwnProperty(lower)) {
+			composition[lower]++;
+		}
+	}
+	return composition;
+}
+
 function shuffleDeck(deck) {
 	for (let i = deck.length - 1; i > 0; i--) {
 		const j = Math.floor(Math.random() * (i + 1));
@@ -261,6 +272,9 @@ wss.on('connection', (socket) => {
 						whiteHand: creatorColor === 'white' ? whiteHand : [],
 						blackDeck: blackDeck.length,
 						blackHand: creatorColor === 'black' ? blackHand : [],
+						deckComposition: data.player === 'white'
+							? getDeckComposition(whiteDeck)
+							: getDeckComposition(blackDeck),
 						currentTurn: 'white'
 					}));
 					break;
@@ -298,6 +312,9 @@ wss.on('connection', (socket) => {
 						whiteHand: game.joinerColor === 'white' ? game.whiteHand : [],
 						blackDeck: game.blackDeck.length,
 						blackHand: game.joinerColor === 'black' ? game.blackHand : [],
+						deckComposition: data.player === 'white'
+							? getDeckComposition(game.whiteDeck)
+							: getDeckComposition(game.blackDeck),
 						currentTurn: game.currentTurn
 					}));
 
@@ -312,6 +329,9 @@ wss.on('connection', (socket) => {
 						creatorColor: creatorColor2,
 						currentTurn: game.currentTurn,
 						whiteDeck: game.whiteDeck.length,
+						deckComposition: data.player === 'white'
+							? getDeckComposition(game.whiteDeck)
+							: getDeckComposition(game.blackDeck),
 						whiteHand: creatorColor2 === 'white' ? game.whiteHand : [],
 						blackDeck: game.blackDeck.length,
 						blackHand: creatorColor2 === 'black' ? game.blackHand : []
@@ -424,9 +444,12 @@ wss.on('connection', (socket) => {
 					socket.send(JSON.stringify({
 						type: 'hand_update',
 						whiteDeck: gameMove.whiteDeck.length,
-						whiteHand: gameMove.whiteHand,
+						whiteHand: data.player === 'white' ? gameMove.whiteHand : [],
 						blackDeck: gameMove.blackDeck.length,
-						blackHand: gameMove.blackHand,
+						blackHand: data.player === 'black' ? gameMove.blackHand : [],
+						deckComposition: data.player === 'white'
+							? getDeckComposition(gameMove.whiteDeck)
+							: getDeckComposition(gameMove.blackDeck),
 						timeControl: {
 							white: gameMove.timeControl.white,
 							black: gameMove.timeControl.black
@@ -534,6 +557,9 @@ wss.on('connection', (socket) => {
 								type: 'pass_update',
 								passingPlayer: passingPlayer,
 								whiteDeck: gamePass.whiteDeck.length,
+								deckComposition: data.player === 'white'
+									? getDeckComposition(gamePass.whiteDeck)
+									: getDeckComposition(gamePass.blackDeck),
 								whiteHand: playerColor === 'white' ? gamePass.whiteHand : [], // Only send white hand to white player
 								blackDeck: gamePass.blackDeck.length,
 								blackHand: playerColor === 'black' ? gamePass.blackHand : [], // Only send black hand to black player
@@ -669,6 +695,9 @@ wss.on('connection', (socket) => {
 								type: 'redraw_update',
 								redrawingPlayer: checkingPlayer,
 								whiteDeck: gameCheck.whiteDeck.length,
+								deckComposition: data.player === 'white'
+									? getDeckComposition(gameCheck.whiteDeck)
+									: getDeckComposition(gameCheck.blackDeck),
 								whiteHand: checkingPlayer === 'white' ? gameCheck.whiteHand : [],
 								blackDeck: gameCheck.blackDeck.length,
 								blackHand: checkingPlayer === 'black' ? gameCheck.blackHand : [],
@@ -746,9 +775,12 @@ wss.on('connection', (socket) => {
 							playerColor: 'white',
 							currentTurn: gameToReconnect.currentTurn,
 							fen: gameToReconnect.fen,
-							whiteDeck: gameToReconnect.whiteDeck, // full array
+							deckComposition: data.player === 'white'
+								? getDeckComposition(gameToReconnect.whiteDeck)
+								: getDeckComposition(gameToReconnect.blackDeck),
+							whiteDeck: gameToReconnect.whiteDeck.length,
 							whiteHand: gameToReconnect.whiteHand,
-							blackDeck: gameToReconnect.blackDeck.length, // only size
+							blackDeck: gameToReconnect.blackDeck.length,
 							blackHand: [],
 							timeControl: gameToReconnect.timeControl
 						};
@@ -759,9 +791,12 @@ wss.on('connection', (socket) => {
 							playerColor: 'black',
 							currentTurn: gameToReconnect.currentTurn,
 							fen: gameToReconnect.fen,
-							whiteDeck: gameToReconnect.whiteDeck.length, // only size
+							deckComposition: data.player === 'white'
+								? getDeckComposition(gameToReconnect.whiteDeck)
+								: getDeckComposition(gameToReconnect.blackDeck),
+							whiteDeck: gameToReconnect.whiteDeck.length,
 							whiteHand: [],
-							blackDeck: gameToReconnect.blackDeck, // full array
+							blackDeck: gameToReconnect.blackDeck.length,
 							blackHand: gameToReconnect.blackHand,
 							timeControl: gameToReconnect.timeControl
 						};

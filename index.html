@@ -15,6 +15,7 @@
 	<link rel="stylesheet" href="css/mobile.css">
 	<link rel="stylesheet" href="css/material-diff.css">
 	<link rel="stylesheet" href="css/mainMenu.css">
+	<link rel="stylesheet" href="css/deckModal.css">
 </head>
 
 <body>
@@ -44,9 +45,12 @@
 			<div id="chessboard"></div>
 			<div class="material-difference bottom-material"></div>
 			<div class="player-info">
-				<div class="deck-info">
-					<span class="deck-count">Deck: <span id="player-deck-count">60</span></span>
-				</div>
+				<button id="player-deck-count-btn" class="deck-button" type="button">
+					<div class="deck-info">
+						<span class="deck-count">Deck: <span id="player-deck-count">60</span></span>
+					</div>
+				</button>
+
 				<div class="timer white-timer">
 					<span id="white-time">3:00</span>
 				</div>
@@ -124,6 +128,17 @@
 				</div>
 				<button id="cancel-waiting" class="cancel-button"
 					onclick="console.log('INLINE: Cancel waiting clicked'); document.getElementById('waiting-modal').style.display = 'none';">Cancel</button>
+			</div>
+		</div>
+		<div id="deck-composition-modal" class="modal">
+			<div class="modal-content small-modal">
+				<div class="modal-header">
+					<h3>Deck Composition</h3>
+					<span class="close-modal" id="close-deck-modal">&times;</span>
+				</div>
+				<div class="modal-body" id="deck-composition-body">
+					<!-- Deck composition will be injected here -->
+				</div>
 			</div>
 		</div>
 	</div>

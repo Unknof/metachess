@@ -35,7 +35,7 @@ const MetachessGame = (function () {
 		started: false,
 		timerId: null
 	};
-
+	let deckComposition = null;
 	const pieceTypeMap = {
 		p: 'pawn',
 		n: 'knight',
@@ -103,6 +103,7 @@ const MetachessGame = (function () {
 			document.getElementById('player-deck-count').textContent = deckCount;
 		} else {
 			document.getElementById('opponent-deck-count').textContent = deckCount;
+			return;
 		}
 
 		// Render cards for the hand
@@ -1696,7 +1697,13 @@ const MetachessGame = (function () {
 		setTimeControl, // Expose for testing purposes
 		setTurn, // Expose for testing purposes
 		updateStatusMessage, // Expose for testing purposes
-		disableAllControls // Expose for testing purposes
+		disableAllControls, // Expose for testing purposes
+		getDeckComposition() {
+			return deckComposition;
+		},
+		setDeckComposition(comp) {
+			deckComposition = comp;
+		},
 	};
 })();
 

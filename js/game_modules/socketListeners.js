@@ -34,8 +34,6 @@ export function setupSocketListeners({
 	startClock,
 	highlightKingInCheck,
 	updateCardsUI,
-	setWhiteHand,
-	setBlackHand,
 }) {
 	let board = getBoard();
 
@@ -44,17 +42,20 @@ export function setupSocketListeners({
 		whiteDeck = Array.isArray(data.whiteDeck) ? data.whiteDeck : Array(data.whiteDeck).fill('?');
 		blackDeck = Array.isArray(data.blackDeck) ? data.blackDeck : Array(data.blackDeck).fill('?');
 
-		// Update hands based on player color
-		if (playerColor === 'white') {
-			whiteHand = data.whiteHand || [];
-			MetachessGame.setWhiteHand(Array.isArray(data.whiteHand) ? data.whiteHand : []);
-			updateCardsUI(whiteHand, whiteDeck, 'white');
-		} else if (playerColor === 'black') {
-			blackHand = data.blackHand || [];
-			MetachessGame.setBlackHand(Array.isArray(data.blackHand) ? data.blackHand : []);
-			updateCardsUI(blackHand, blackDeck, 'black');
-		}
+		whiteHand = data.whiteHand || [];
+		MetachessGame.setWhiteHand(Array.isArray(data.whiteHand) ? data.whiteHand : []);
+		updateCardsUI(whiteHand, whiteDeck, 'white');
+
+		blackHand = data.blackHand || [];
+		MetachessGame.setBlackHand(Array.isArray(data.blackHand) ? data.blackHand : []);
+		updateCardsUI(blackHand, blackDeck, 'black');
+
+
+
 		currentTurn = data.currentTurn;
+		if (data.deckComposition) {
+			MetachessGame.setDeckComposition(data.deckComposition);
+		}
 	}
 	// Listen for game created event
 	MetachessSocket.on('game_created', (data) => {

@@ -237,6 +237,59 @@ document.addEventListener('DOMContentLoaded', function () {
 		MetachessGame.passTurn();
 	});
 
+	// Deck composition modal toggle logic
+	const deckBtn = document.getElementById('player-deck-count-btn');
+	const deckModal = document.getElementById('deck-composition-modal');
+	const deckModalBody = document.getElementById('deck-composition-body');
+	const closeDeckModal = document.getElementById('close-deck-modal');
+
+	let deckModalVisible = false;
+
+	function renderDeckComposition() {
+		const composition = (typeof MetachessGame.getDeckComposition === 'function')
+			? MetachessGame.getDeckComposition()
+			: null;
+
+		if (!composition) {
+			deckModalBody.innerHTML = '<p>Deck composition not available.</p>';
+			return;
+		}
+
+		deckModalBody.innerHTML = `
+        <table style="margin:0 auto;">
+            <tr><th>Piece</th><th>Count</th></tr>
+            <tr><td>Pawn</td><td>${composition.p || 0}</td></tr>
+            <tr><td>Knight</td><td>${composition.n || 0}</td></tr>
+            <tr><td>Bishop</td><td>${composition.b || 0}</td></tr>
+            <tr><td>Rook</td><td>${composition.r || 0}</td></tr>
+            <tr><td>Queen</td><td>${composition.q || 0}</td></tr>
+            <tr><td>King</td><td>${composition.k || 0}</td></tr>
+        </table>
+    `;
+	}
+
+	function toggleDeckModal() {
+		deckModalVisible = !deckModalVisible;
+		if (deckModalVisible) {
+			renderDeckComposition();
+			deckModal.style.display = 'flex';
+		} else {
+			deckModal.style.display = 'none';
+		}
+	}
+
+	// Make the deck button clickable (just like pass-turn)
+	if (deckBtn) {
+		deckBtn.addEventListener('click', toggleDeckModal);
+	}
+	if (closeDeckModal) {
+		closeDeckModal.addEventListener('click', toggleDeckModal);
+	}
+	if (deckModal) {
+		deckModal.addEventListener('click', function (e) {
+			if (e.target === deckModal) toggleDeckModal();
+		});
+	}
 	// Add this at the end of your DOMContentLoaded function
 	document.addEventListener('click', function (event) {
 		console.log('Document click detected on:', event.target);
