@@ -33,7 +33,9 @@ export function setupSocketListeners({
 	checkForValidMoves,
 	startClock,
 	highlightKingInCheck,
-	updateCardsUI
+	updateCardsUI,
+	setWhiteHand,
+	setBlackHand,
 }) {
 	let board = getBoard();
 
@@ -44,10 +46,12 @@ export function setupSocketListeners({
 
 		// Update hands based on player color
 		if (playerColor === 'white') {
-			whiteHand = Array.isArray(data.whiteHand) ? data.whiteHand : [];
+			whiteHand = data.whiteHand || [];
+			MetachessGame.setWhiteHand(Array.isArray(data.whiteHand) ? data.whiteHand : []);
 			updateCardsUI(whiteHand, whiteDeck, 'white');
 		} else if (playerColor === 'black') {
-			blackHand = Array.isArray(data.blackHand) ? data.blackHand : [];
+			blackHand = data.blackHand || [];
+			MetachessGame.setBlackHand(Array.isArray(data.blackHand) ? data.blackHand : []);
 			updateCardsUI(blackHand, blackDeck, 'black');
 		}
 		currentTurn = data.currentTurn;
@@ -155,13 +159,6 @@ export function setupSocketListeners({
 		whiteDeck = Array.isArray(data.whiteDeck) ? data.whiteDeck : Array(data.whiteDeck).fill('?');
 		blackDeck = Array.isArray(data.blackDeck) ? data.blackDeck : Array(data.blackDeck).fill('?');
 
-		// Update hands based on player color
-		if (playerColor === 'white') {
-			whiteHand = data.whiteHand;
-		} else {
-			blackHand = data.blackHand;
-		}
-
 		// Update time control if provided
 		if (data.timeControl) {
 			timeControl.white = data.timeControl.white;
@@ -174,14 +171,11 @@ export function setupSocketListeners({
 		}
 
 		// Synchronize with server's game state
+		updateDeckAndHandFromServer(data);
 		synchronizeGameState(data.currentTurn);
 
-		updateDeckAndHandFromServer(data);
 
 
-
-		// Status messages
-		updateStatusMessage('Opponent made a move');
 	});
 
 	// Update your pass_update handler

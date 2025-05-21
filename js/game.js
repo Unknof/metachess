@@ -896,7 +896,12 @@ const MetachessGame = (function () {
 		updateClockOrientation();
 
 		if (playerColor && currentTurn === playerColor && !checkForValidMoves(playerColor)) {
-			console.log("No valid moves after synchronizeGameState, requesting redraw");
+			console.log("DEBUG: checkForValidMoves called with",
+				"playerColor:", playerColor,
+				"currentTurn:", currentTurn,
+				"hand:", playerColor === 'white' ? whiteHand : blackHand,
+				"fen:", chess.fen()
+			);
 			handleMultiplayerRedraw();
 			return;
 		}
@@ -1075,7 +1080,7 @@ const MetachessGame = (function () {
 
 	function checkForValidMoves(player) {
 		const hand = player === 'white' ? whiteHand : blackHand;
-
+		console.log("Checking for valid moves for player:", player, "Hand:", hand);
 		// No cards in hand means no valid moves
 		if (hand.length === 0) return false;
 
@@ -1186,18 +1191,7 @@ const MetachessGame = (function () {
 			clearInterval(timeControl.timerId);
 			timeControl.timerId = null;
 		}
-
-		if (playerColor && MetachessSocket && MetachessSocket.isConnected()) {
-			const winner = playerColor === 'white' ? 'black' : 'white';
-
-			// This ensures the server stops the clock for both players
-			MetachessSocket.sendGameOver({
-				gameId: MetachessSocket.gameId,
-				winner: winner,
-				loser: playerColor,
-				reason: winCondition
-			});
-		}
+		//Server now handles game over
 
 		// Determine winner based on player who lost
 		const winner = playerColor === 'white' ? 'BLACK' : 'WHITE';
@@ -1647,6 +1641,8 @@ const MetachessGame = (function () {
 		}
 	}
 
+
+
 	return {
 
 		createMultiplayer() {
@@ -1665,6 +1661,12 @@ const MetachessGame = (function () {
 				urlGameId,
 				gameId
 			});
+		},
+		setWhiteHand(newHand) {
+			whiteHand = newHand;
+		},
+		setBlackHand(newHand) {
+			blackHand = newHand;
 		},
 
 
