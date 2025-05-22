@@ -13,6 +13,10 @@ export function setChessAndBoard(instances) {
 export function getChess() { return chess; }
 export function getBoard() { return board; }
 
+function updateRematchButton(enabled) {
+	const rematchBtn = document.getElementById('rematch-btn');
+	if (rematchBtn) rematchBtn.disabled = !enabled;
+}
 
 const MetachessGame = (function () {
 	// Game state
@@ -1301,6 +1305,29 @@ const MetachessGame = (function () {
 		return false;
 	}
 
+	function resetMultiplayerBoard() {
+		if (chess) {
+			chess.reset();
+		}
+		if (board) {
+			board.position('start');
+			board.orientation('white');
+		}
+		timeControl = {
+			white: 180,  // 3 minutes in seconds
+			black: 180,
+			started: false,
+			timerId: null
+		};
+
+		updateClockOrientation();
+		updateMaterialDisplay();
+		updateLastMoveHighlighting(null, null);
+		document.querySelectorAll('.game-over').forEach(element => {
+			element.classList.remove('game-over');
+		});
+	}
+
 	function resetGame() {
 		// Stop the clock if it's running
 		if (timeControl.timerId) {
@@ -1641,9 +1668,6 @@ const MetachessGame = (function () {
 			}
 		}
 	}
-
-
-
 	return {
 
 		createMultiplayer() {
@@ -1677,6 +1701,7 @@ const MetachessGame = (function () {
 		resetGame,
 		gameOverWin,
 		updateCardsUI,
+		resetMultiplayerBoard,
 		// New methods for testing
 		getCurrentTurn() {
 			return currentTurn;
@@ -1713,4 +1738,4 @@ window.MetachessGame = {
 	// No need to add individual functions here, they're already in MetachessGame object
 };
 
-export { MetachessGame };
+export { MetachessGame, updateRematchButton };

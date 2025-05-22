@@ -2,7 +2,7 @@
  * Socket event listeners for MetaChess multiplayer functionality
  */
 
-import { MetachessGame, setChessAndBoard } from '../game.js';
+import { MetachessGame, setChessAndBoard, updateRematchButton } from '../game.js';
 import { getChess, getBoard } from '../game.js';
 
 export function setupSocketListeners({
@@ -57,8 +57,13 @@ export function setupSocketListeners({
 			MetachessGame.setDeckComposition(data.deckComposition);
 		}
 	}
+
+
+
 	// Listen for game created event
 	MetachessSocket.on('game_created', (data) => {
+		updateRematchButton(false);
+		MetachessGame.resetMultiplayerBoard();
 		MetachessGame.multiplayerInit(getChess(), board, data);
 		const newUrl = new URL(window.location);
 		newUrl.searchParams.set('game', data.gameId);
@@ -111,8 +116,11 @@ export function setupSocketListeners({
 	// ADD THIS HANDLER for game_joined event
 	MetachessSocket.on('game_joined', (data) => {
 		console.log('Game joined:', data);
-
+		handleGameJoin(data);
+	});
+	function handleGameJoin(data) {
 		// Set game ID and player color
+		updateRematchButton(false);
 		MetachessGame.multiplayerInit(getChess(), board, data);
 		MetachessSocket.setGameInfo(data.gameId, data.playerColor);
 		playerColor = data.playerColor;
@@ -141,13 +149,11 @@ export function setupSocketListeners({
 
 		updateDeckAndHandFromServer(data);
 
-
-
 		// Update game status
 		updateStatusMessage(
 			currentTurn === playerColor ? 'Your turn' : 'Opponent\'s turn'
 		);
-	});
+	}
 
 	// Update your opponent_move handler
 	MetachessSocket.on('opponent_move', (data) => {
@@ -319,6 +325,7 @@ export function setupSocketListeners({
 
 	MetachessSocket.on('game_over', (data) => {
 		console.log('Game over notification received:', data);
+		updateRematchButton(true);
 
 		// Handle the game over state based on reason
 		switch (data.reason) {
@@ -443,6 +450,30 @@ export function setupSocketListeners({
 
 		// Check if king is in check
 		highlightKingInCheck();
+	});
+
+	MetachessSocket.on('rematch_offer_received', () => {
+		// Highlight menu and rematch button
+		console.log('Rematch offer received');
+		document.getElementById('menu-button').classList.add('highlight');
+		document.getElementById('rematch-btn').classList.add('highlight');
+	});
+
+	MetachessSocket.on('rematch_start', (data) => {
+		document.getElementById('rematch-pending-modal').style.display = 'none';
+		document.getElementById('menu-button').classList.remove('highlight');
+		document.getElementById('rematch-btn').classList.remove('highlight');
+		MetachessSocket.joinGame(data.newGameId);
+		handleGameJoin(data);
+
+	});
+	MetachessSocket.on('rematch_failed', (data) => {
+		console.log('Rematch failed:', data.message);
+		updateRematchButton(false);
+		document.getElementById('rematch-pending-modal').style.display = 'none';
+		document.getElementById('menu-button').classList.remove('highlight');
+		document.getElementById('rematch-btn').classList.remove('highlight');
+		updateStatusMessage(data.message || 'Rematch failed.');
 	});
 
 	MetachessSocket.on('error', (data) => {

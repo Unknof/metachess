@@ -64,7 +64,7 @@
 						<span class="close-modal">&times;</span>
 					</div>
 					<div class="modal-body">
-						<button id="new-game-btn" class="menu-button">New Game</button>
+						<button id="rematch-btn" class="menu-button" disabled>Rematch</button>
 						<button id="multiplayer-btn" class="multiplayer-button">Versus</button>
 						<button id="concede-button" class="menu-button danger">Concede Game</button>
 					</div>
@@ -138,6 +138,16 @@
 				</div>
 				<div class="modal-body" id="deck-composition-body">
 					<!-- Deck composition will be injected here -->
+				</div>
+			</div>
+		</div>
+		<div id="rematch-pending-modal" class="modal" style="display:none;">
+			<div class="modal-content small-modal">
+				<div class="modal-header">
+					<h3>Rematch</h3>
+				</div>
+				<div class="modal-body">
+					<p>Rematch offer pending...</p>
 				</div>
 			</div>
 		</div>

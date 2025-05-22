@@ -159,11 +159,17 @@ document.addEventListener('DOMContentLoaded', function () {
 
 
 
-	const newGameBtn = document.getElementById('new-game-btn');
-	if (newGameBtn) {
-		newGameBtn.addEventListener('click', function () {
-			document.getElementById('game-options-modal').style.display = 'none';
-			MetachessGame.init(chess, board);
+	const rematchBtn = document.getElementById('rematch-btn');
+	if (rematchBtn) {
+		rematchBtn.addEventListener('click', function () {
+			if (!rematchBtn.disabled) {
+				MetachessSocket.sendRematchOffer({
+					gameId: MetachessSocket.gameId,
+					player: MetachessSocket.playerColor
+				});
+				// Show "rematch offer pending" modal
+				document.getElementById('rematch-pending-modal').style.display = 'flex';
+			}
 		});
 	}
 

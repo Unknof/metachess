@@ -306,6 +306,18 @@ const MetachessSocket = (function () {
 
 		return true;
 	}
+	function sendRematchOffer(data) {
+		if (!socket || socket.readyState !== WebSocket.OPEN) {
+			console.error("Cannot send rematch offer: Socket not connected");
+			return false;
+		}
+		socket.send(JSON.stringify({
+			type: 'rematch_offer',
+			gameId: data.gameId,
+			player: data.player
+		}));
+		return true;
+	}
 
 	function off(eventType, callback) {
 		if (callbacks[eventType] === callback) {
@@ -331,6 +343,7 @@ const MetachessSocket = (function () {
 		sendCheckValidMoves,
 		setChessInstance,
 		sendResign,
+		sendRematchOffer,
 		isConnected() {
 			return socket && socket.readyState === WebSocket.OPEN;
 		},

@@ -82,6 +82,59 @@ setInterval(() => {
 	}
 }, 60 * 1000); // Run every minute
 
+
+function createGame({ whiteSocket, blackSocket, creatorColor, joinerColor, creatorPlayerId = null, joinerPlayerId = null }) {
+	const gameId = uuidv4();
+
+	// Create both decks
+	const whiteDeck = createDeck('white');
+	const blackDeck = createDeck('black');
+
+	// Draw initial hands
+	const whiteHand = drawCards(whiteDeck, 5);
+	const blackHand = drawCards(blackDeck, 5);
+
+	const game = {
+		id: gameId,
+		players: [whiteSocket, blackSocket].filter(Boolean),
+		currentTurn: 'white',
+		moves: [],
+		whiteDeck,
+		whiteHand,
+		blackDeck,
+		blackHand,
+		creatorColor,
+		joinerColor,
+		timeControl: {
+			white: DEFAULT_TIME_SECONDS,
+			black: DEFAULT_TIME_SECONDS,
+			lastMoveTime: null,
+			started: false
+		},
+		createdAt: Date.now(),
+		lastActivity: Date.now(),
+		playerInfo: {
+			[creatorColor]: { playerId: creatorPlayerId },
+			[joinerColor]: { playerId: joinerPlayerId }
+		},
+		fen: 'start',
+		rematchOffers: { white: false, black: false },
+	};
+
+	games[gameId] = game;
+
+	// Assign socket properties if sockets are provided
+	if (whiteSocket) {
+		whiteSocket.gameId = gameId;
+		whiteSocket.playerColor = 'white';
+	}
+	if (blackSocket) {
+		blackSocket.gameId = gameId;
+		blackSocket.playerColor = 'black';
+	}
+
+	return { game, gameId, whiteDeck, blackDeck, whiteHand, blackHand };
+}
 // Add a function to start/manage the game timers
 function startGameTimer(gameId) {
 	if (activeTimers.has(gameId)) return; // Timer already running
@@ -199,7 +252,11 @@ function handleGameOver(game, reason, winner) {
 			}));
 		}
 	});
-	delete games[game.id];
+	if (game.removeTimeout) clearTimeout(game.removeTimeout);
+	game.removeTimeout = setTimeout(() => {
+		delete games[game.id];
+		console.log(`Game ${game.id} deleted 3 minutes after game over`);
+	}, 3 * 60 * 1000);
 
 }
 
@@ -219,50 +276,18 @@ wss.on('connection', (socket) => {
 			console.log('Parsed message:', data);
 
 			switch (data.type) {
-				case 'create_game':
-					const gameId = uuidv4();
-
-					// Randomly assign color - 50% chance of white/black
+				case 'create_game': {
 					const creatorIsWhite = Math.random() < 0.5;
 					const creatorColor = creatorIsWhite ? 'white' : 'black';
 					const joinerColor = creatorIsWhite ? 'black' : 'white';
 
-					// Create both decks
-					const whiteDeck = createDeck('white');
-					const blackDeck = createDeck('black');
-
-					// Draw initial hands
-					const whiteHand = drawCards(whiteDeck, 5);
-					const blackHand = drawCards(blackDeck, 5);
-
-					games[gameId] = {
-						id: gameId,
-						players: [socket],
-						currentTurn: 'white', // Game always starts with white
-						moves: [],
-						whiteDeck: whiteDeck,
-						whiteHand: whiteHand,
-						blackDeck: blackDeck,
-						blackHand: blackHand,
-						creatorColor: creatorColor,
-						joinerColor: joinerColor,
-						timeControl: {
-							white: DEFAULT_TIME_SECONDS,
-							black: DEFAULT_TIME_SECONDS,
-							lastMoveTime: null, // null until first white move
-							started: false      // Flag to track if clock has started
-						},
-						createdAt: Date.now(),
-						lastActivity: Date.now(),
-						playerInfo: {
-							[creatorColor]: { playerId: data.playerId || null }, // store playerId if available
-							[joinerColor]: { playerId: null }
-						},
-						fen: 'start', // Initial FEN string
-					};
-
-					socket.gameId = gameId;
-					socket.playerColor = creatorColor;
+					const { game, gameId, whiteDeck, blackDeck, whiteHand, blackHand } = createGame({
+						whiteSocket: creatorIsWhite ? socket : null,
+						blackSocket: creatorIsWhite ? null : socket,
+						creatorColor,
+						joinerColor,
+						creatorPlayerId: data.playerId || null
+					});
 
 					socket.send(JSON.stringify({
 						type: 'game_created',
@@ -272,12 +297,13 @@ wss.on('connection', (socket) => {
 						whiteHand: creatorColor === 'white' ? whiteHand : [],
 						blackDeck: blackDeck.length,
 						blackHand: creatorColor === 'black' ? blackHand : [],
-						deckComposition: data.player === 'white'
+						deckComposition: creatorColor === 'white'
 							? getDeckComposition(whiteDeck)
 							: getDeckComposition(blackDeck),
 						currentTurn: 'white'
 					}));
 					break;
+				}
 
 				case 'join_game':
 					const game = games[data.gameId];
@@ -828,6 +854,83 @@ wss.on('connection', (socket) => {
 					handleGameOver(gameResign, 'resignation', winner);
 					break;
 
+				case 'rematch_offer': {
+					const gameId = data.gameId;
+					const player = data.player;
+					const game = games[gameId];
+					if (!game) {
+						socket.send(JSON.stringify({
+							type: 'rematch_failed',
+							message: 'Game no longer exists or is too old for rematch.'
+						}));
+						break;
+					}
+
+					// Track rematch offers on the game object itself
+					if (!game.rematchOffers) game.rematchOffers = { white: false, black: false };
+					game.rematchOffers[player] = true;
+
+					// Find opponent socket
+					const opponentColor = player === 'white' ? 'black' : 'white';
+					const opponentSocket = game.players.find(s => s.playerColor === opponentColor);
+
+					// Notify opponent to highlight menu/rematch
+					if (opponentSocket && opponentSocket.readyState === WebSocket.OPEN) {
+						opponentSocket.send(JSON.stringify({
+							type: 'rematch_offer_received'
+						}));
+					}
+
+					// If both players have offered rematch, pick a leader (the first to offer)
+					if (game.rematchOffers.white && game.rematchOffers.black) {
+						// Find sockets for rematch (current sockets for each color)
+						const whiteSocket = game.players.find(s => s.playerColor === 'white');
+						const blackSocket = game.players.find(s => s.playerColor === 'black');
+						const creatorColor = game.creatorColor;
+						const joinerColor = game.joinerColor;
+						const creatorPlayerId = game.playerInfo[creatorColor]?.playerId || null;
+						const joinerPlayerId = game.playerInfo[joinerColor]?.playerId || null;
+
+						console.log('Rematch sockets and info:');
+						console.log('  whiteSocket:', !!whiteSocket ? 'found' : 'not found');
+						console.log('  blackSocket:', !!blackSocket ? 'found' : 'not found');
+						console.log('  creatorColor:', creatorColor);
+						console.log('  joinerColor:', joinerColor);
+						console.log('  creatorPlayerId:', creatorPlayerId);
+						console.log('  joinerPlayerId:', joinerPlayerId);
+
+
+						const { game: newgame, gameId: newGameId } = createGame({
+							whiteSocket,
+							blackSocket,
+							creatorColor,
+							joinerColor,
+							creatorPlayerId,
+							joinerPlayerId
+						});
+
+
+						game.players.forEach(s => {
+							if (s.readyState === WebSocket.OPEN) {
+								s.send(JSON.stringify({
+									type: 'rematch_start',
+									gameId: newGameId,
+									playerColor: game.opponentColor,
+									whiteDeck: game.whiteDeck.length,
+									whiteHand: game.opponentColor === 'white' ? game.whiteHand : [],
+									blackDeck: game.blackDeck.length,
+									blackHand: game.opponentColor === 'black' ? game.blackHand : [],
+									deckComposition: data.player === 'white'
+										? getDeckComposition(game.whiteDeck)
+										: getDeckComposition(game.blackDeck),
+									currentTurn: game.currentTurn
+								}));
+							}
+						});
+
+					}
+					break;
+				}
 				case 'heartbeat':
 					// Just acknowledge heartbeat
 					socket.send(JSON.stringify({

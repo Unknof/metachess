@@ -1,0 +1,6 @@
+{
+  username: String,
+  email: String,
+  password: String, // hashed
+  playerId: String  // unique, like your cookie
+}
