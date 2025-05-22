@@ -954,33 +954,25 @@ const MetachessGame = (function () {
 		return `${minutes}:${secs.toString().padStart(2, '0')}`;
 	}
 
-	function updateClockDisplay() {
+	function updateClockDisplay(timeControlOverride = null) {
+		const tc = timeControlOverride || timeControl;
 
 		if (playerColor === 'black') {
-			// When playing as black, swap the timer displays visually
-			// This keeps the DOM structure intact but displays opposite times
-			document.getElementById('white-time').textContent = formatTime(timeControl.black);
-			document.getElementById('black-time').textContent = formatTime(timeControl.white);
+			document.getElementById('white-time').textContent = formatTime(tc.black);
+			document.getElementById('black-time').textContent = formatTime(tc.white);
 
-			// Highlight active player's clock (visually reversed for black's perspective)
 			document.querySelector('.white-timer').classList.toggle('active', currentTurn === 'black');
 			document.querySelector('.black-timer').classList.toggle('active', currentTurn === 'white');
-
-			// Highlight low time warning (visually reversed)
-			document.querySelector('.white-timer').classList.toggle('low-time', timeControl.black < 15);
-			document.querySelector('.black-timer').classList.toggle('low-time', timeControl.white < 15);
+			document.querySelector('.white-timer').classList.toggle('low-time', tc.black < 15);
+			document.querySelector('.black-timer').classList.toggle('low-time', tc.white < 15);
 		} else {
-			// Standard behavior for white player
-			document.getElementById('white-time').textContent = formatTime(timeControl.white);
-			document.getElementById('black-time').textContent = formatTime(timeControl.black);
+			document.getElementById('white-time').textContent = formatTime(tc.white);
+			document.getElementById('black-time').textContent = formatTime(tc.black);
 
-			// Standard highlighting
 			document.querySelector('.white-timer').classList.toggle('active', currentTurn === 'white');
 			document.querySelector('.black-timer').classList.toggle('active', currentTurn === 'black');
-
-			// Standard low time warning
-			document.querySelector('.white-timer').classList.toggle('low-time', timeControl.white < 15);
-			document.querySelector('.black-timer').classList.toggle('low-time', timeControl.black < 15);
+			document.querySelector('.white-timer').classList.toggle('low-time', tc.white < 15);
+			document.querySelector('.black-timer').classList.toggle('low-time', tc.black < 15);
 		}
 	}
 

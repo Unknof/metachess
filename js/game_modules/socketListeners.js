@@ -190,7 +190,9 @@ export function setupSocketListeners({
 			timeControl.black = data.timeControl.black;
 
 			// Start clock if it hasn't been started yet
-			if (!timeControl.started) startClock();
+			if (!timeControl.started) {
+				startClock();
+			}
 
 			updateClockDisplay();
 		}
@@ -383,7 +385,14 @@ export function setupSocketListeners({
 
 	MetachessSocket.on('time_update', (data) => {
 
-		updateClockDisplay();
+		timeControl.white = data.white;
+		timeControl.black = data.black;
+		currentTurn = data.currentTurn;
+		let serverTimeControl = {
+			white: data.white,
+			black: data.black,
+		}
+		updateClockDisplay(serverTimeControl);
 
 	});
 
