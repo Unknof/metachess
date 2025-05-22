@@ -412,7 +412,7 @@ const MetachessGame = (function () {
 						// Highlight the move that was just made - now using variables from the wider scope
 						updateLastMoveHighlighting(move.from, move.to);
 
-						if (currentTurn === 'white' && !timeControl.started) {
+						if (!timeControl.started) {
 							startClock();
 						}
 						if (!playerColor) {  // Only in singleplayer mode
@@ -954,8 +954,8 @@ const MetachessGame = (function () {
 		return `${minutes}:${secs.toString().padStart(2, '0')}`;
 	}
 
-	// Replace the updateClockDisplay function with this fixed version
 	function updateClockDisplay() {
+
 		if (playerColor === 'black') {
 			// When playing as black, swap the timer displays visually
 			// This keeps the DOM structure intact but displays opposite times

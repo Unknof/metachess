@@ -58,7 +58,31 @@ export function setupSocketListeners({
 		}
 	}
 
+	MetachessSocket.on('new_game_id', (data) => {
+		console.log('Received new_game_id:', data);
+		updateRematchButton(false);
+		MetachessGame.resetMultiplayerBoard();
 
+		// Set the game link for sharing
+		const newUrl = new URL(window.location);
+		newUrl.searchParams.set('game', data.gameId);
+		window.history.pushState({}, '', newUrl);
+
+		const gameLinkInput = document.getElementById('game-link');
+		if (gameLinkInput) {
+			gameLinkInput.value = window.location.href;
+		}
+
+		updateStatusMessage('Share this link and wait for an opponent to join...');
+		document.getElementById('waiting-modal').style.display = 'flex';
+		document.getElementById('multiplayer-modal').style.display = 'none';
+
+		// Store the gameId for joining later
+		MetachessSocket.setGameInfo(data.gameId, null);
+
+		// Disable controls until joined
+		disableAllControls();
+	});
 
 	// Listen for game created event
 	MetachessSocket.on('game_created', (data) => {
@@ -88,29 +112,16 @@ export function setupSocketListeners({
 	MetachessSocket.on('opponent_joined', (data) => {
 		console.log('Opponent joined the game:', data);
 
-		// Clear the waiting modal
+		// Hide waiting modal
 		document.getElementById('waiting-modal').style.display = 'none';
 		document.getElementById('multiplayer-modal').style.display = 'none';
 
-		// Make sure playerColor is set
-		if (!playerColor && data.creatorColor) {
-			playerColor = data.creatorColor;
+		updateStatusMessage('Opponent found! Joining game...');
+
+		// Automatically join the game as the creator
+		if (data.gameId) {
+			MetachessSocket.joinGame(data.gameId);
 		}
-
-		// Show notification
-		updateStatusMessage(
-			`Opponent joined! You are playing as ${playerColor.toUpperCase()}`
-		);
-
-		// Initialize with correct color - this is the key fix!
-		initializeWithColor(playerColor);
-
-		// Toggle controls
-		togglePlayerControls();
-
-		updateDeckAndHandFromServer(data);
-
-
 	});
 
 	// ADD THIS HANDLER for game_joined event
@@ -121,7 +132,6 @@ export function setupSocketListeners({
 	function handleGameJoin(data) {
 		// Set game ID and player color
 		updateRematchButton(false);
-		MetachessGame.multiplayerInit(getChess(), board, data);
 		MetachessSocket.setGameInfo(data.gameId, data.playerColor);
 		playerColor = data.playerColor;
 
@@ -137,15 +147,23 @@ export function setupSocketListeners({
 		whiteDeck = Array.isArray(data.whiteDeck) ? data.whiteDeck : Array(data.whiteDeck).fill('?');
 		blackDeck = Array.isArray(data.blackDeck) ? data.blackDeck : Array(data.blackDeck).fill('?');
 
-		// Update hands based on player color
 		if (playerColor === 'white') {
 			whiteHand = data.whiteHand;
 		} else {
 			blackHand = data.blackHand;
 		}
 
+		if (data.timeControl) {
+			timeControl.white = data.timeControl.white;
+			timeControl.black = data.timeControl.black;
+			timeControl.started = !!data.timeControl.started;
+		}
+
 		// Initialize with player color
 		initializeWithColor(playerColor);
+
+		// Now call multiplayerInit (after state is set)
+		MetachessGame.multiplayerInit(getChess(), board, data);
 
 		updateDeckAndHandFromServer(data);
 
@@ -364,21 +382,9 @@ export function setupSocketListeners({
 	});
 
 	MetachessSocket.on('time_update', (data) => {
-		//console.log('Time update received:', data);
 
-		// Update time control information
-		timeControl.white = data.white;
-		timeControl.black = data.black;
-
-		// Make sure current turn is in sync with server
-		if (currentTurn !== data.currentTurn) {
-			currentTurn = data.currentTurn;
-			updateBoardBorder();
-			togglePlayerControls();
-		}
-
-		// Update the clock display
 		updateClockDisplay();
+
 	});
 
 	// Add handler for reconnection_successful event

@@ -126,6 +126,17 @@ const MetachessSocket = (function () {
 		callbacks[eventType] = callback;
 	}
 
+	function requestNewGame() {
+		if (!socket || socket.readyState !== WebSocket.OPEN) return false;
+
+		socket.send(JSON.stringify({
+			type: 'request_new_game',
+			playerId: getOrCreatePlayerId()
+		}));
+
+		return true;
+	}
+
 	// Make sure the sendMove function includes the current turn
 	function sendMove(move) {
 		if (!socket || socket.readyState !== WebSocket.OPEN) return false;
@@ -344,6 +355,7 @@ const MetachessSocket = (function () {
 		setChessInstance,
 		sendResign,
 		sendRematchOffer,
+		requestNewGame,
 		isConnected() {
 			return socket && socket.readyState === WebSocket.OPEN;
 		},

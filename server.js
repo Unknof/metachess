@@ -70,14 +70,21 @@ const activeTimers = new Set();
 setInterval(() => {
 	const now = Date.now();
 	for (const [gameId, game] of Object.entries(games)) {
-		if (!game.timeControl.started && now - game.createdAt > 3 * 60 * 1000) {
+		if (
+			(!game.timeControl || !game.timeControl.started) &&
+			now - game.createdAt > 3 * 60 * 1000
+		) {
 			// Not started after 3 minutes
 			delete games[gameId];
 			console.log(`Deleted unstarted game ${gameId} after 3 minutes`);
-		} else if (game.timeControl.started && now - game.lastActivity > 10 * 60 * 1000) {
-			// Started but inactive for 10 minutes
+		} else if (
+			game.timeControl &&
+			game.timeControl.started &&
+			now - game.lastActivity > 120 * 60 * 1000
+		) {
+			// Started but inactive for 120 minutes
 			delete games[gameId];
-			console.log(`Deleted inactive game ${gameId} after 10 minutes`);
+			console.log(`Deleted inactive game ${gameId} after 120 minutes`);
 		}
 	}
 }, 60 * 1000); // Run every minute
@@ -118,7 +125,8 @@ function createGame({ whiteSocket, blackSocket, creatorColor, joinerColor, creat
 			[joinerColor]: { playerId: joinerPlayerId }
 		},
 		fen: 'start',
-		rematchOffers: { white: false, black: false },
+		rematchOffers: { white: false, black: false }
+		// Remove waitingSocket here!
 	};
 
 	games[gameId] = game;
@@ -169,7 +177,6 @@ function startGameTimer(gameId) {
 				return;
 			}
 
-			// Send time update to both clients
 			game.players.forEach(client => {
 				if (client.readyState === WebSocket.OPEN) {
 					client.send(JSON.stringify({
@@ -276,46 +283,33 @@ wss.on('connection', (socket) => {
 			console.log('Parsed message:', data);
 
 			switch (data.type) {
-				case 'create_game': {
-					const creatorIsWhite = Math.random() < 0.5;
-					const creatorColor = creatorIsWhite ? 'white' : 'black';
-					const joinerColor = creatorIsWhite ? 'black' : 'white';
-
-					const { game, gameId, whiteDeck, blackDeck, whiteHand, blackHand } = createGame({
-						whiteSocket: creatorIsWhite ? socket : null,
-						blackSocket: creatorIsWhite ? null : socket,
-						creatorColor,
-						joinerColor,
-						creatorPlayerId: data.playerId || null
-					});
-
+				case 'request_new_game': {
+					const gameId = uuidv4();
+					games[gameId] = {
+						id: gameId,
+						players: [],
+						createdAt: Date.now(),
+						lastActivity: Date.now(),
+						playerInfo: {},
+						waitingSocket: socket // Remember the creator's socket
+						// No decks/hands yet!
+					};
 					socket.send(JSON.stringify({
-						type: 'game_created',
-						gameId: gameId,
-						playerColor: creatorColor,
-						whiteDeck: whiteDeck.length,
-						whiteHand: creatorColor === 'white' ? whiteHand : [],
-						blackDeck: blackDeck.length,
-						blackHand: creatorColor === 'black' ? blackHand : [],
-						deckComposition: creatorColor === 'white'
-							? getDeckComposition(whiteDeck)
-							: getDeckComposition(blackDeck),
-						currentTurn: 'white'
+						type: 'new_game_id',
+						gameId
 					}));
 					break;
 				}
 
-				case 'join_game':
+				case 'join_game': {
 					const game = games[data.gameId];
 					if (!game) {
 						socket.send(JSON.stringify({
 							type: 'error',
 							message: 'Game not found'
 						}));
-
 						return;
 					}
-
 					if (game.players.length >= 2) {
 						socket.send(JSON.stringify({
 							type: 'error',
@@ -324,45 +318,77 @@ wss.on('connection', (socket) => {
 						return;
 					}
 
-					game.lastActivity = Date.now();
-					game.playerInfo[game.joinerColor].playerId = data.playerId;
-					game.players.push(socket);
+					// Assign color by join order
+					let playerColor;
+					if (game.players.length === 0) {
+						playerColor = Math.random() < 0.5 ? 'white' : 'black';
+					} else {
+						playerColor = game.players[0].playerColor === 'white' ? 'black' : 'white';
+					}
+
 					socket.gameId = data.gameId;
-					socket.playerColor = game.joinerColor;
+					socket.playerColor = playerColor;
+					game.players.push(socket);
+					game.playerInfo[playerColor] = { playerId: data.playerId || null };
 
-					socket.send(JSON.stringify({
-						type: 'game_joined',
-						gameId: data.gameId,
-						playerColor: game.joinerColor,
-						whiteDeck: game.whiteDeck.length,
-						whiteHand: game.joinerColor === 'white' ? game.whiteHand : [],
-						blackDeck: game.blackDeck.length,
-						blackHand: game.joinerColor === 'black' ? game.blackHand : [],
-						deckComposition: data.player === 'white'
-							? getDeckComposition(game.whiteDeck)
-							: getDeckComposition(game.blackDeck),
-						currentTurn: game.currentTurn
-					}));
+					if (game.players.length === 1 && game.waitingSocket && game.waitingSocket.readyState === WebSocket.OPEN) {
+						console.log(`Notifying waiting socket of opponent joining`);
+						game.waitingSocket.send(JSON.stringify({
+							type: 'opponent_joined',
+							gameId: data.gameId
+						}));
+						// Optionally, clear waitingSocket so it's not used again
+						delete game.waitingSocket;
+					}
 
-					// Notify first player that opponent has joined
-					const creatorSocket = game.players[0];
-					const creatorColor2 = game.creatorColor;
+					// When both players have joined, initialize the game using createGame
+					if (game.players.length === 2) {
 
-					creatorSocket.send(JSON.stringify({
-						type: 'opponent_joined',
-						gameId: data.gameId,
-						opponentColor: game.joinerColor,
-						creatorColor: creatorColor2,
-						currentTurn: game.currentTurn,
-						whiteDeck: game.whiteDeck.length,
-						deckComposition: data.player === 'white'
-							? getDeckComposition(game.whiteDeck)
-							: getDeckComposition(game.blackDeck),
-						whiteHand: creatorColor2 === 'white' ? game.whiteHand : [],
-						blackDeck: game.blackDeck.length,
-						blackHand: creatorColor2 === 'black' ? game.blackHand : []
-					}));
+						const whiteSocket = game.players.find(s => s.playerColor === 'white');
+						const blackSocket = game.players.find(s => s.playerColor === 'black');
+						const creatorColor = 'white';
+						const joinerColor = 'black';
+						const creatorPlayerId = game.playerInfo['white']?.playerId || null;
+						const joinerPlayerId = game.playerInfo['black']?.playerId || null;
+
+						const { game: fullGame } = createGame({
+							whiteSocket,
+							blackSocket,
+							creatorColor,
+							joinerColor,
+							creatorPlayerId,
+							joinerPlayerId
+						});
+						// Overwrite the minimal game slot with the full game object
+						games[data.gameId] = fullGame;
+
+						// Notify both players
+						fullGame.players.forEach(client => {
+							client.send(JSON.stringify({
+								type: 'game_joined',
+								gameId: fullGame.id,
+								playerColor: client.playerColor,
+								whiteDeck: fullGame.whiteDeck.length,
+								whiteHand: client.playerColor === 'white' ? fullGame.whiteHand : [],
+								blackDeck: fullGame.blackDeck.length,
+								blackHand: client.playerColor === 'black' ? fullGame.blackHand : [],
+								deckComposition: client.playerColor === 'white'
+									? getDeckComposition(fullGame.whiteDeck)
+									: getDeckComposition(fullGame.blackDeck),
+								currentTurn: fullGame.currentTurn,
+
+							}));
+						});
+					} else {
+						// Only one player, send waiting message
+						socket.send(JSON.stringify({
+							type: 'waiting_for_opponent',
+							gameId: data.gameId,
+							playerColor
+						}));
+					}
 					break;
+				}
 
 				case 'move':
 					const gameMove = games[data.gameId];

@@ -19,14 +19,12 @@ document.addEventListener('DOMContentLoaded', function () {
 	if (versusBtn) {
 		versusBtn.addEventListener('click', function () {
 			if (mainMenuLanding) mainMenuLanding.style.display = 'none';
-			// ...existing versus logic...
 			Multiplayer.clearGameSession();
 			document.getElementById('multiplayer-modal').style.display = 'none';
 			MetachessGame.createMultiplayer()
 				.then(() => {
-					setTimeout(() => {
-						MetachessSocket.createGame();
-					}, 500);
+					// Request a new gameId from the server (server creates empty game slot)
+					MetachessSocket.requestNewGame();
 				})
 				.catch(err => {
 					console.error('Failed to initialize multiplayer:', err);
@@ -119,9 +117,8 @@ document.addEventListener('DOMContentLoaded', function () {
 			document.getElementById('multiplayer-modal').style.display = 'none';
 			MetachessGame.createMultiplayer()
 				.then(() => {
-					setTimeout(() => {
-						MetachessSocket.createGame();
-					}, 500);
+					// Request a new gameId from the server (server creates empty game slot)
+					MetachessSocket.requestNewGame();
 				})
 				.catch(err => {
 					console.error('Failed to initialize multiplayer:', err);
