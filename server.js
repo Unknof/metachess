@@ -54,7 +54,89 @@ app.post('/api/register', async (req, res) => {
 		res.status(500).json({ error: 'Internal server error' });
 	}
 });
+app.post('/api/login', async (req, res) => {
+	try {
+		const { email, password } = req.body;
+		if (!email || !password) {
+			return res.status(400).json({ error: 'Email and password are required' });
+		}
 
+		const db = client.db('metachess');
+		const users = db.collection('users');
+
+		// Find user by email
+		const user = await users.findOne({ email });
+		if (!user) {
+			return res.status(401).json({ error: 'Invalid credentials' });
+		}
+
+		// Check password
+		const bcrypt = require('bcrypt');
+		const isValidPassword = await bcrypt.compare(password, user.password);
+		if (!isValidPassword) {
+			return res.status(401).json({ error: 'Invalid credentials' });
+		}
+
+		// Return user info (without password)
+		res.status(200).json({
+			message: 'Login successful',
+			user: {
+				id: user._id,
+				username: user.username,
+				email: user.email,
+				playerId: user.playerId
+			}
+		});
+	} catch (err) {
+		console.error(err);
+		res.status(500).json({ error: 'Internal server error' });
+	}
+});
+app.post('/api/save_deck', async (req, res) => {
+	try {
+		const { playerId, deck } = req.body;
+		if (!playerId || !Array.isArray(deck)) {
+			return res.status(400).json({ error: 'Missing playerId or deck' });
+		}
+
+		const db = client.db('metachess');
+		const users = db.collection('users');
+		const result = await users.updateOne(
+			{ playerId },
+			{ $set: { deck } }
+		);
+
+		if (result.matchedCount === 0) {
+			return res.status(404).json({ error: 'User not found' });
+		}
+
+		res.status(200).json({ message: 'Deck saved successfully' });
+	} catch (err) {
+		console.error(err);
+		res.status(500).json({ error: 'Internal server error' });
+	}
+});
+app.get('/api/get_deck', async (req, res) => {
+	try {
+		const playerId = req.query.playerId;
+		if (!playerId) {
+			return res.status(400).json({ error: 'Missing playerId' });
+		}
+
+		const db = client.db('metachess');
+		const users = db.collection('users');
+		const user = await users.findOne({ playerId });
+
+		if (!user || !Array.isArray(user.deck) || user.deck.length === 0) {
+			return res.status(404).json({ error: 'No deck found' });
+		}
+
+		res.status(200).json({ deck: user.deck });
+	} catch (err) {
+		console.error(err);
+		res.status(500).json({ error: 'Internal server error' });
+	}
+});
 // Serve static files
 app.use(express.static(__dirname));
 
@@ -89,13 +171,28 @@ setInterval(() => {
 	}
 }, 60 * 1000); // Run every minute
 
+async function getUserDeck(playerId, color = 'white') {
+	const db = client.db('metachess');
+	const users = db.collection('users');
+	const user = await users.findOne({ playerId });
+	if (user && Array.isArray(user.deck) && user.deck.length > 0) {
+		// Adjust case for color
+		const deck = user.deck.map(piece =>
+			color === 'white' ? piece.toLowerCase() : piece.toUpperCase()
+		);
+		// Shuffle the deck before returning
+		return shuffleDeck([...deck]);
+	}
+	return null;
+}
 
-function createGame({ whiteSocket, blackSocket, creatorColor, joinerColor, creatorPlayerId = null, joinerPlayerId = null }) {
+
+async function createGame({ whiteSocket, blackSocket, creatorColor, joinerColor, creatorPlayerId = null, joinerPlayerId = null }) {
 	const gameId = uuidv4();
 
 	// Create both decks
-	const whiteDeck = createDeck('white');
-	const blackDeck = createDeck('black');
+	const whiteDeck = (await getUserDeck(creatorPlayerId, 'white')) || createDeck('white');
+	const blackDeck = (await getUserDeck(joinerPlayerId, 'black')) || createDeck('black');
 
 	// Draw initial hands
 	const whiteHand = drawCards(whiteDeck, 5);
@@ -274,7 +371,7 @@ const games = {};
 wss.on('connection', (socket) => {
 	console.log('Client connected');
 
-	socket.on('message', (message) => {
+	socket.on('message', async (message) => {
 		try {
 			// Add logging before parsing
 			console.log('Raw message received:', message.toString());
@@ -366,7 +463,7 @@ wss.on('connection', (socket) => {
 						const creatorPlayerId = game.playerInfo['white']?.playerId || null;
 						const joinerPlayerId = game.playerInfo['black']?.playerId || null;
 
-						const { game: fullGame } = createGame({
+						const { game: fullGame } = await createGame({
 							whiteSocket,
 							blackSocket,
 							creatorColor,

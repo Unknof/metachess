@@ -2,6 +2,7 @@ import { MetachessGame } from './game.js';
 import { MetachessSocket } from './socket.js';
 import * as Multiplayer from './game_modules/multiplayer.js';
 import { setChessAndBoard } from './game.js';
+import { Auth } from './auth.js';
 
 
 console.log('App version running on port: ' + window.location.port);
@@ -33,19 +34,104 @@ document.addEventListener('DOMContentLoaded', function () {
 		});
 	}
 
+	function getDeckFromEditor() {
+		const pieceIds = ['p', 'n', 'b', 'r', 'q', 'k'];
+		const counts = {};
+		let valid = true;
+
+		// Collect and validate all piece counts
+		pieceIds.forEach(id => {
+			const val = parseInt(document.getElementById(`deck-${id}`).value, 10);
+			if (isNaN(val) || val < 1 || val > 99) {
+				valid = false;
+			}
+			counts[id] = val;
+		});
+
+		if (!valid) return null;
+
+		// Build deck array efficiently
+		return pieceIds.flatMap(id => Array(counts[id]).fill(id));
+	}
 	// Settings and Profile buttons: placeholder handlers
 	const settingsBtn = document.getElementById('main-menu-settings');
 	if (settingsBtn) {
-		settingsBtn.addEventListener('click', function () {
-			alert('Settings coming soon!');
+		settingsBtn.addEventListener('click', async function () {
+			if (!Auth.isLoggedIn()) {
+				alert('You must be logged in to edit your deck.');
+				return;
+			}
+			const playerId = Auth.getCurrentUser().playerId;
+			try {
+				const response = await fetch(`/api/get_deck?playerId=${encodeURIComponent(playerId)}`);
+				if (response.ok) {
+					const data = await response.json();
+					// Count pieces
+					const counts = { p: 0, n: 0, b: 0, r: 0, q: 0, k: 0 };
+					data.deck.forEach(piece => {
+						const key = piece.toLowerCase();
+						if (counts.hasOwnProperty(key)) counts[key]++;
+					});
+					document.getElementById('deck-p').value = counts.p;
+					document.getElementById('deck-n').value = counts.n;
+					document.getElementById('deck-b').value = counts.b;
+					document.getElementById('deck-r').value = counts.r;
+					document.getElementById('deck-q').value = counts.q;
+					document.getElementById('deck-k').value = counts.k;
+				} else {
+					// No deck found, use defaults
+					document.getElementById('deck-p').value = 8;
+					document.getElementById('deck-n').value = 2;
+					document.getElementById('deck-b').value = 2;
+					document.getElementById('deck-r').value = 2;
+					document.getElementById('deck-q').value = 1;
+					document.getElementById('deck-k').value = 1;
+				}
+			} catch (err) {
+				// On error, use defaults
+				document.getElementById('deck-p').value = 8;
+				document.getElementById('deck-n').value = 2;
+				document.getElementById('deck-b').value = 2;
+				document.getElementById('deck-r').value = 2;
+				document.getElementById('deck-q').value = 1;
+				document.getElementById('deck-k').value = 1;
+			}
+			document.getElementById('deck-editor-modal').style.display = 'flex';
 		});
 	}
-	const profileBtn = document.getElementById('main-menu-profile');
-	if (profileBtn) {
-		profileBtn.addEventListener('click', function () {
-			alert('Profile coming soon!');
+
+	// On save button in deck editor modal:
+	document.getElementById('save-deck-btn').addEventListener('click', async function () {
+		const deck = getDeckFromEditor(); // Implement this to read the deck from your UI
+		const playerId = Auth.getCurrentUser().playerId;
+		const response = await fetch('/api/save_deck', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ playerId, deck })
 		});
-	}
+		const result = await response.json();
+		alert(result.message || result.error);
+	});
+
+	document.getElementById('deck-editor-form').addEventListener('submit', async function (e) {
+		e.preventDefault();
+		const deck = getDeckFromEditor();
+		const messageDiv = document.getElementById('deck-save-message');
+		if (!deck) {
+			messageDiv.textContent = 'All values must be between 1 and 99.';
+			messageDiv.style.color = 'red';
+			return;
+		}
+		const playerId = Auth.getCurrentUser().playerId;
+		const response = await fetch('/api/save_deck', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ playerId, deck })
+		});
+		const result = await response.json();
+		messageDiv.textContent = result.message || result.error;
+		messageDiv.style.color = result.message ? 'green' : 'red';
+	});
 	// Initialize the chessboard
 	const { chess, board } = MetachessBoard.init('chessboard');
 	setChessAndBoard({ chess, board });
@@ -319,5 +405,81 @@ document.addEventListener('DOMContentLoaded', function () {
 			const waitingModalStyle = window.getComputedStyle(waitingModal);
 			// Rest of the code using waitingModalStyle
 		}
+	});
+
+	Auth.init();
+
+	// Update profile button handler
+	const profileBtn = document.getElementById('main-menu-profile');
+	if (profileBtn) {
+		profileBtn.addEventListener('click', function () {
+			if (Auth.isLoggedIn()) {
+				// Show user menu (you can expand this later)
+				const user = Auth.getCurrentUser();
+				alert(`Logged in as: ${user.username}\n\nClick OK to logout`);
+				Auth.logout();
+			} else {
+				// Show login modal
+				document.getElementById('login-modal').style.display = 'flex';
+			}
+		});
+	}
+
+	// Login form handler
+	document.getElementById('login-form-element').addEventListener('submit', async function (e) {
+		e.preventDefault();
+		const email = document.getElementById('login-email').value;
+		const password = document.getElementById('login-password').value;
+
+		const result = await Auth.login(email, password);
+		const messageDiv = document.getElementById('auth-message');
+
+		if (result.success) {
+			messageDiv.textContent = 'Login successful!';
+			messageDiv.style.color = 'green';
+			setTimeout(() => {
+				document.getElementById('login-modal').style.display = 'none';
+				messageDiv.textContent = '';
+			}, 1000);
+		} else {
+			messageDiv.textContent = result.error;
+			messageDiv.style.color = 'red';
+		}
+	});
+
+	// Register form handler
+	document.getElementById('register-form-element').addEventListener('submit', async function (e) {
+		e.preventDefault();
+		const username = document.getElementById('register-username').value;
+		const email = document.getElementById('register-email').value;
+		const password = document.getElementById('register-password').value;
+
+		const result = await Auth.register(username, email, password);
+		const messageDiv = document.getElementById('auth-message');
+
+		if (result.success) {
+			messageDiv.textContent = 'Registration and login successful!';
+			messageDiv.style.color = 'green';
+			setTimeout(() => {
+				document.getElementById('login-modal').style.display = 'none';
+				messageDiv.textContent = '';
+			}, 1000);
+		} else {
+			messageDiv.textContent = result.error;
+			messageDiv.style.color = 'red';
+		}
+	});
+
+	// Toggle between login and register forms
+	document.getElementById('show-register').addEventListener('click', function (e) {
+		e.preventDefault();
+		document.getElementById('login-form').style.display = 'none';
+		document.getElementById('register-form').style.display = 'block';
+	});
+
+	document.getElementById('show-login').addEventListener('click', function (e) {
+		e.preventDefault();
+		document.getElementById('register-form').style.display = 'none';
+		document.getElementById('login-form').style.display = 'block';
 	});
 });

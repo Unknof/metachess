@@ -2,5 +2,6 @@
   username: String,
   email: String,
   password: String, // hashed
-  playerId: String  // unique, like your cookie
+  playerId: String, // unique
+  deck: [String]    // e.g. ["p","p","n","b","r","q","k",...]
 }
