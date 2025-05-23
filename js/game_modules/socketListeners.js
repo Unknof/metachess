@@ -131,6 +131,7 @@ export function setupSocketListeners({
 	});
 	function handleGameJoin(data) {
 		// Set game ID and player color
+		//resetMultiplayerBoard();
 		updateRematchButton(false);
 		MetachessSocket.setGameInfo(data.gameId, data.playerColor);
 		playerColor = data.playerColor;
@@ -475,12 +476,50 @@ export function setupSocketListeners({
 	});
 
 	MetachessSocket.on('rematch_start', (data) => {
+		console.log('Rematch starting with new gameId:', data.newGameId);
+
+		// 1. Hide rematch UI
 		document.getElementById('rematch-pending-modal').style.display = 'none';
 		document.getElementById('menu-button').classList.remove('highlight');
 		document.getElementById('rematch-btn').classList.remove('highlight');
-		MetachessSocket.joinGame(data.newGameId);
-		handleGameJoin(data);
+		updateRematchButton(false);
 
+		// 2. Clean up current game state (similar to resetMultiplayerBoard but more thorough)
+		MetachessGame.resetMultiplayerBoard();
+
+		// Reset local variables to initial state
+		whiteDeck = [];
+		whiteHand = [];
+		blackDeck = [];
+		blackHand = [];
+		currentTurn = 'white';
+		timeControl = {
+			white: 180,
+			black: 180,
+			started: false,
+			timerId: null
+		};
+
+		// 3. Clear any open modals
+		document.querySelectorAll('.modal').forEach(modal => {
+			modal.style.display = 'none';
+		});
+
+		// 4. Update URL for the new game
+		const newUrl = new URL(window.location);
+		newUrl.searchParams.set('game', data.newGameId);
+		window.history.pushState({}, '', newUrl);
+
+		// 5. Show status message
+		updateStatusMessage('Starting rematch...');
+
+		// 6. Disable controls until fully joined
+		disableAllControls();
+
+		// 7. Join the new game (this will trigger game_joined event which handles full initialization)
+		MetachessSocket.joinGame(data.newGameId, {
+			isRematch: true
+		});
 	});
 	MetachessSocket.on('rematch_failed', (data) => {
 		console.log('Rematch failed:', data.message);

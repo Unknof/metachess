@@ -165,13 +165,14 @@ const MetachessSocket = (function () {
 		return true;
 	}
 
-	function joinGame(id) {
+	function joinGame(id, options = {}) {
 		if (!socket || socket.readyState !== WebSocket.OPEN) return false;
 
 		socket.send(JSON.stringify({
 			type: 'join_game',
 			gameId: id,
-			playerId: getOrCreatePlayerId()
+			playerId: getOrCreatePlayerId(),
+			isRematch: options.isRematch || false
 		}));
 
 		return true;

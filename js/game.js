@@ -1298,26 +1298,41 @@ const MetachessGame = (function () {
 	}
 
 	function resetMultiplayerBoard() {
-		if (chess) {
-			chess.reset();
-		}
-		if (board) {
-			board.position('start');
-			board.orientation('white');
-		}
+
+		whiteDeck = [];
+		whiteHand = [];
+		blackDeck = [];
+		blackHand = [];
+		playerHand = null;
+		opponentHand = null;
+		currentTurn = 'white';
+		gameOver = false;
+		selectedCard = null;
+		playerColor = null;
 		timeControl = {
 			white: 180,  // 3 minutes in seconds
 			black: 180,
 			started: false,
 			timerId: null
 		};
-
-		updateClockOrientation();
-		updateMaterialDisplay();
+		if (timeControl.timerId) {
+			clearInterval(timeControl.timerId);
+			timeControl.timerId = null;
+		}
 		updateLastMoveHighlighting(null, null);
 		document.querySelectorAll('.game-over').forEach(element => {
 			element.classList.remove('game-over');
 		});
+
+		// Reset chess board
+		if (chess) {
+			chess.reset();
+		}
+		// Reset board position and orientation to white
+		if (board) {
+			board.position('start');
+			board.orientation('white');
+		}
 	}
 
 	function resetGame() {
