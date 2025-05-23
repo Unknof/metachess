@@ -110,9 +110,26 @@ const MetachessGame = (function () {
 			return;
 		}
 
+		// --- Trick: temporarily set FEN turn to player's color for move validation ---
+		let originalFen = chess.fen();
+		let fenParts = originalFen.split(' ');
+		let originalTurn = fenParts[1];
+		let needsTurnTrick = playerColor && color !== (originalTurn === 'w' ? 'white' : 'black');
+		let validMoves;
+
+		if (needsTurnTrick) {
+			// Set FEN turn to the color we want to check
+			fenParts[1] = color === 'white' ? 'w' : 'b';
+			let fakeFen = fenParts.join(' ');
+			chess.load(fakeFen);
+			validMoves = checkCardValiditySynchronous(hand);
+			chess.load(originalFen); // Restore original FEN
+		} else {
+			validMoves = checkCardValiditySynchronous(hand);
+		}
+
 		// Render cards for the hand
 		const containerId = 'player-cards'; // Adjust if you have separate containers
-		const validMoves = checkCardValiditySynchronous(hand);
 		MetachessDeck.renderCards(hand, containerId, color, false, validMoves);
 
 		// Add click handlers to cards (if needed)
@@ -956,6 +973,7 @@ const MetachessGame = (function () {
 
 	function updateClockDisplay(timeControlOverride = null) {
 		const tc = timeControlOverride || timeControl;
+		if (timeControlOverride == null) return;
 
 		if (playerColor === 'black') {
 			document.getElementById('white-time').textContent = formatTime(tc.black);
@@ -1570,12 +1588,8 @@ const MetachessGame = (function () {
 	}
 
 	// Function to update the material difference display
-	// Function to update the material difference display
 	function updateMaterialDisplay() {
-
-
 		const materialInfo = calculateMaterialDifference();
-		const difference = materialInfo.difference;
 
 		const topMaterial = document.querySelector('.top-material');
 		const bottomMaterial = document.querySelector('.bottom-material');
@@ -1588,8 +1602,30 @@ const MetachessGame = (function () {
 		topMaterial.innerHTML = '';
 		bottomMaterial.innerHTML = '';
 
-		// If no material difference, show nothing but maintain the space
-		if (difference === 0) {
+		// Calculate NET piece differences (what each player has captured MORE than opponent)
+		const netWhiteAdvantage = {};
+		const netBlackAdvantage = {};
+
+		// For each piece type, calculate the net difference
+		['p', 'n', 'b', 'r', 'q'].forEach(pieceType => {
+			const whitePieces = materialInfo.whitePieceAdvantage[pieceType] || 0;
+			const blackPieces = materialInfo.blackPieceAdvantage[pieceType] || 0;
+
+			const netDiff = whitePieces - blackPieces;
+
+			if (netDiff > 0) {
+				netWhiteAdvantage[pieceType] = netDiff;
+			} else if (netDiff < 0) {
+				netBlackAdvantage[pieceType] = -netDiff;
+			}
+		});
+
+		// Check if there's any net difference to display
+		const hasWhiteAdvantage = Object.values(netWhiteAdvantage).some(count => count > 0);
+		const hasBlackAdvantage = Object.values(netBlackAdvantage).some(count => count > 0);
+
+		// If no net difference, show nothing but maintain the space
+		if (!hasWhiteAdvantage && !hasBlackAdvantage) {
 			// Add spacers to reserve space
 			const topSpacer = document.createElement('div');
 			topSpacer.className = 'material-spacer';
@@ -1601,8 +1637,9 @@ const MetachessGame = (function () {
 			return;
 		}
 
-		console.log("Material difference updated:", difference);
-		// Function to create the piece display
+		console.log("Net material difference - White advantage:", netWhiteAdvantage, "Black advantage:", netBlackAdvantage);
+
+		// Function to create the piece display for net advantages
 		const createPieceDisplay = (pieceAdvantage, color) => {
 			const container = document.createElement('div');
 			container.className = 'piece-symbols';
@@ -1633,41 +1670,49 @@ const MetachessGame = (function () {
 		// Handle the case where the board is flipped (player is black)
 		if (playerColor === 'black') {
 			// Board is flipped (black at bottom)
-			if (difference > 0) {
-				// White is ahead
-				const pieceDisplay = createPieceDisplay(materialInfo.whitePieceAdvantage, 'white');
+			if (hasWhiteAdvantage) {
+				// White has net advantage
+				const pieceDisplay = createPieceDisplay(netWhiteAdvantage, 'white');
 				topMaterial.appendChild(pieceDisplay);
 				topMaterial.classList.add('advantage-white');
-				// Add spacer to bottom to keep height
-				const bottomSpacer = document.createElement('div');
-				bottomSpacer.className = 'material-spacer';
-				bottomMaterial.appendChild(bottomSpacer);
-			} else if (difference < 0) {
-				// Black is ahead
-				const pieceDisplay = createPieceDisplay(materialInfo.blackPieceAdvantage, 'black');
-				bottomMaterial.appendChild(pieceDisplay);
-				bottomMaterial.classList.add('advantage-black');
+			} else {
 				// Add spacer to top to keep height
 				const topSpacer = document.createElement('div');
 				topSpacer.className = 'material-spacer';
 				topMaterial.appendChild(topSpacer);
 			}
+
+			if (hasBlackAdvantage) {
+				// Black has net advantage
+				const pieceDisplay = createPieceDisplay(netBlackAdvantage, 'black');
+				bottomMaterial.appendChild(pieceDisplay);
+				bottomMaterial.classList.add('advantage-black');
+			} else {
+				// Add spacer to bottom to keep height
+				const bottomSpacer = document.createElement('div');
+				bottomSpacer.className = 'material-spacer';
+				bottomMaterial.appendChild(bottomSpacer);
+			}
 		} else {
 			// Default orientation (white at bottom)
-			if (difference > 0) {
-				// White is ahead
-				const pieceDisplay = createPieceDisplay(materialInfo.whitePieceAdvantage, 'white');
-				bottomMaterial.appendChild(pieceDisplay);
-				bottomMaterial.classList.add('advantage-white');
+			if (hasBlackAdvantage) {
+				// Black has net advantage
+				const pieceDisplay = createPieceDisplay(netBlackAdvantage, 'black');
+				topMaterial.appendChild(pieceDisplay);
+				topMaterial.classList.add('advantage-black');
+			} else {
 				// Add spacer to top to keep height
 				const topSpacer = document.createElement('div');
 				topSpacer.className = 'material-spacer';
 				topMaterial.appendChild(topSpacer);
-			} else if (difference < 0) {
-				// Black is ahead
-				const pieceDisplay = createPieceDisplay(materialInfo.blackPieceAdvantage, 'black');
-				topMaterial.appendChild(pieceDisplay);
-				topMaterial.classList.add('advantage-black');
+			}
+
+			if (hasWhiteAdvantage) {
+				// White has net advantage
+				const pieceDisplay = createPieceDisplay(netWhiteAdvantage, 'white');
+				bottomMaterial.appendChild(pieceDisplay);
+				bottomMaterial.classList.add('advantage-white');
+			} else {
 				// Add spacer to bottom to keep height
 				const bottomSpacer = document.createElement('div');
 				bottomSpacer.className = 'material-spacer';

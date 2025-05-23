@@ -195,7 +195,7 @@ export function setupSocketListeners({
 				startClock();
 			}
 
-			updateClockDisplay();
+			updateClockDisplay(data.timeControl);
 		}
 
 		// Synchronize with server's game state
@@ -229,7 +229,7 @@ export function setupSocketListeners({
 			// Start clock if it hasn't been started yet
 			if (!timeControl.started) startClock();
 
-			updateClockDisplay();
+			updateClockDisplay(data.timeControl);
 		}
 		if (data.fen && data.fen !== 'start') {
 			console.log('Socketlistener Updating board with FEN after pass:', data.fen);
@@ -264,7 +264,7 @@ export function setupSocketListeners({
 
 		// Update time display to show zero for player who timed out
 		timeControl[data.player] = 0;
-		updateClockDisplay();
+		updateClockDisplay(data.timeControl);
 
 		// Show game over message
 		const timeoutPlayer = data.player === playerColor ? 'You' : 'Opponent';
@@ -452,7 +452,7 @@ export function setupSocketListeners({
 		if (data.timeControl) {
 			Object.assign(timeControl, data.timeControl);
 			timeControl.started = true;
-			updateClockDisplay();
+			updateClockDisplay(data.timeControl);
 		}
 
 		// Enable or disable controls based on turn
